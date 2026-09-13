@@ -1,0 +1,1113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no">
+<title>Bell — Workout Timer</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="Bell">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#000000">
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'%3E%3Crect width='180' height='180' fill='%23000'/%3E%3Ccircle cx='90' cy='98' r='52' fill='none' stroke='%23F5F2ED' stroke-width='7'/%3E%3Cline x1='90' y1='98' x2='90' y2='64' stroke='%23FF5A1F' stroke-width='7' stroke-linecap='round'/%3E%3Cline x1='90' y1='98' x2='114' y2='98' stroke='%23FF5A1F' stroke-width='7' stroke-linecap='round'/%3E%3Crect x='76' y='30' width='28' height='12' rx='4' fill='%23F5F2ED'/%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'%3E%3Crect width='180' height='180' fill='%23000'/%3E%3Ccircle cx='90' cy='98' r='52' fill='none' stroke='%23F5F2ED' stroke-width='7'/%3E%3Cline x1='90' y1='98' x2='90' y2='64' stroke='%23FF5A1F' stroke-width='7' stroke-linecap='round'/%3E%3Cline x1='90' y1='98' x2='114' y2='98' stroke='%23FF5A1F' stroke-width='7' stroke-linecap='round'/%3E%3Crect x='76' y='30' width='28' height='12' rx='4' fill='%23F5F2ED'/%3E%3C/svg%3E">
+<style>
+  :root{
+    --bg:#000000;
+    --panel:#0a0a0a;
+    --line:#242424;
+    --fg:#F5F2ED;
+    --muted:#7a7a7a;
+    --accent:#FF5A1F;
+    --accent-dim:#7a2c10;
+    --work:#35D07F;
+    --work-dim:#123a26;
+    --rest:#E23D28;
+    --rest-dim:#3a1410;
+    --radius:2px;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{height:100%;}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--fg);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    overflow:hidden;
+    height:100vh;
+    height:100dvh;
+    user-select:none;
+    -webkit-user-select:none;
+  }
+  button{
+    font-family:inherit;
+    color:inherit;
+    background:none;
+    border:none;
+    cursor:pointer;
+  }
+  button:focus-visible, input:focus-visible{
+    outline:2px solid var(--accent);
+    outline-offset:2px;
+  }
+  input[type="number"]{
+    font-family:inherit;
+    background:var(--panel);
+    color:var(--fg);
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    padding:.6em .5em;
+    font-variant-numeric:tabular-nums;
+  }
+  input[type="number"]::-webkit-inner-spin-button{opacity:.6;}
+
+  #app{
+    height:100%;
+    display:flex;
+    flex-direction:column;
+    max-width:900px;
+    margin:0 auto;
+    padding:env(safe-area-inset-top,0) env(safe-area-inset-right,0) env(safe-area-inset-bottom,0) env(safe-area-inset-left,0);
+  }
+  .screen{
+    display:none;
+    flex-direction:column;
+    height:100%;
+    padding:20px 20px calc(20px + env(safe-area-inset-bottom,0));
+    overflow-y:auto;
+  }
+  .screen.active{display:flex;}
+
+  /* ---------- top bar ---------- */
+  .topbar{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    min-height:44px;
+    flex:0 0 auto;
+  }
+  .brand{
+    font-size:1.05rem;
+    font-weight:700;
+    letter-spacing:.01em;
+  }
+  .brand .dot{color:var(--accent);}
+  .navbtn{
+    font-size:.95rem;
+    color:var(--muted);
+    padding:.5em .3em;
+    display:flex;
+    align-items:center;
+    gap:.3em;
+  }
+  .navbtn:active{color:var(--fg);}
+  .navbtn svg{width:18px;height:18px;}
+
+  /* ---------- select screen ---------- */
+  .select-title{
+    font-size:clamp(1.6rem,5vw,2.2rem);
+    font-weight:700;
+    margin:.6em 0 .1em;
+    letter-spacing:-.01em;
+  }
+  .select-sub{
+    color:var(--muted);
+    font-size:.95rem;
+    margin-bottom:1.1em;
+  }
+  .type-grid{
+    display:grid;
+    grid-template-columns:repeat(2,1fr);
+    gap:10px;
+    flex:1 1 auto;
+  }
+  @media (min-width:640px){
+    .type-grid{grid-template-columns:repeat(3,1fr);}
+  }
+  .type-card{
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    padding:16px 14px;
+    text-align:left;
+    display:flex;
+    flex-direction:column;
+    justify-content:space-between;
+    min-height:118px;
+    transition:border-color .15s, background .15s;
+  }
+  .type-card:active{background:var(--panel); border-color:var(--accent);}
+  .type-card .name{
+    font-size:1.15rem;
+    font-weight:700;
+  }
+  .type-card .desc{
+    color:var(--muted);
+    font-size:.82rem;
+    margin-top:6px;
+    line-height:1.3;
+  }
+
+  /* ---------- config screen ---------- */
+  .config-header{
+    margin:1.2em 0 1.4em;
+  }
+  .config-header .kicker{
+    color:var(--accent);
+    font-size:.85rem;
+    font-weight:700;
+  }
+  .config-header h2{
+    font-size:clamp(1.5rem,4.5vw,2rem);
+    margin:.15em 0 0;
+  }
+  .field-group{
+    margin-bottom:1.6em;
+  }
+  .field-label{
+    font-size:.85rem;
+    color:var(--muted);
+    margin-bottom:.6em;
+  }
+  .chip-row{
+    display:flex;
+    flex-wrap:wrap;
+    gap:8px;
+    align-items:center;
+  }
+  .chip{
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    padding:.6em 1em;
+    font-size:.95rem;
+    font-variant-numeric:tabular-nums;
+  }
+  .chip.selected{
+    border-color:var(--accent);
+    color:var(--accent);
+  }
+  .custom-inline{
+    display:flex;
+    align-items:center;
+    gap:.5em;
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    padding:.4em .8em;
+  }
+  .custom-inline.selected{border-color:var(--accent);}
+  .custom-inline input{
+    width:4.5em;
+    border:none;
+    background:none;
+    padding:.3em 0;
+    font-size:.95rem;
+  }
+  .custom-inline span{color:var(--muted); font-size:.85rem;}
+  .toggle-row{
+    display:flex;
+    gap:8px;
+  }
+  .toggle-row .chip{flex:1; text-align:center;}
+  .config-footer{
+    margin-top:auto;
+    padding-top:1em;
+  }
+  .primary-btn{
+    width:100%;
+    background:var(--accent);
+    color:#000;
+    font-weight:700;
+    font-size:1.05rem;
+    padding:.95em;
+    border-radius:var(--radius);
+    text-align:center;
+  }
+  .primary-btn:active{background:#e04f18;}
+  .primary-btn[disabled]{
+    background:var(--line);
+    color:var(--muted);
+  }
+
+  /* ---------- run screen ---------- */
+  #screen-run{
+    padding-left:16px;
+    padding-right:16px;
+    justify-content:space-between;
+    transition:background-color .4s ease;
+  }
+  #screen-run.phase-work{background:linear-gradient(var(--work-dim),#000 55%);}
+  #screen-run.phase-rest{background:linear-gradient(var(--rest-dim),#000 55%);}
+
+  .run-top{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    flex:0 0 auto;
+  }
+  .run-meta{
+    flex:1 1 auto;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    min-height:0;
+  }
+  .phase-label{
+    font-size:clamp(1rem,3.4vw,1.6rem);
+    font-weight:700;
+    letter-spacing:.04em;
+    margin-bottom:.2em;
+    min-height:1.4em;
+  }
+  .phase-label.work{color:var(--work);}
+  .phase-label.rest{color:var(--rest);}
+  .phase-label.neutral{color:var(--accent);}
+  .round-label{
+    color:var(--muted);
+    font-size:clamp(.85rem,2.2vw,1.05rem);
+    margin-bottom:.3em;
+    min-height:1.3em;
+  }
+  .time-display{
+    font-size:clamp(4.2rem,26vw,13rem);
+    font-weight:800;
+    font-variant-numeric:tabular-nums;
+    letter-spacing:-.02em;
+    line-height:1;
+  }
+  .cap-flag{
+    color:var(--rest);
+    font-weight:700;
+    font-size:clamp(1rem,3vw,1.4rem);
+    margin-top:.3em;
+    visibility:hidden;
+  }
+  .cap-flag.show{visibility:visible;}
+  .progress-track{
+    width:100%;
+    max-width:520px;
+    height:4px;
+    background:var(--line);
+    border-radius:2px;
+    margin-top:1em;
+    overflow:hidden;
+    visibility:hidden;
+  }
+  .progress-track.show{visibility:visible;}
+  .progress-fill{
+    height:100%;
+    background:var(--fg);
+    width:0%;
+    transition:width .2s linear, background-color .3s;
+  }
+  .laps{
+    width:100%;
+    max-width:420px;
+    max-height:22vh;
+    overflow-y:auto;
+    margin-top:1em;
+    font-variant-numeric:tabular-nums;
+    font-size:.9rem;
+    color:var(--muted);
+  }
+  .laps div{
+    display:flex;
+    justify-content:space-between;
+    padding:.35em 0;
+    border-bottom:1px solid var(--line);
+  }
+  .laps div span:first-child{color:var(--fg);}
+
+  .run-controls{
+    flex:0 0 auto;
+    display:flex;
+    gap:12px;
+    padding:1em 0 .4em;
+  }
+  .ctrl-btn{
+    flex:1;
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    padding:1em;
+    font-size:1rem;
+    font-weight:700;
+    text-align:center;
+  }
+  .ctrl-btn.main{
+    background:var(--fg);
+    color:#000;
+    border-color:var(--fg);
+  }
+  .ctrl-btn.main.running{
+    background:transparent;
+    color:var(--fg);
+    border-color:var(--fg);
+  }
+  .ctrl-btn:active{opacity:.7;}
+
+  /* ---------- big / TV mode ---------- */
+  body.big-mode .run-top .navbtn.exit{visibility:hidden;}
+  body.big-mode .run-controls .ctrl-btn.secondary,
+  body.big-mode .laps{display:none;}
+  body.big-mode .time-display{font-size:clamp(6rem,32vw,20rem);}
+  body.big-mode #screen-run{padding-left:6px;padding-right:6px;}
+  body.big-mode .run-controls{padding-bottom:1em;}
+
+  @media (prefers-reduced-motion:reduce){
+    *{transition:none !important;}
+  }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- ===================== SELECT SCREEN ===================== -->
+  <section class="screen active" id="screen-select">
+    <div class="topbar">
+      <div class="brand">bell<span class="dot">.</span></div>
+      <button class="navbtn" id="btn-big-from-select" title="Big / TV mode">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="14" rx="1"/><path d="M8 20h8"/></svg>
+      </button>
+    </div>
+    <div class="select-title">What are we running?</div>
+    <div class="select-sub">Pick a timer type to configure it.</div>
+    <div class="type-grid" id="type-grid"></div>
+  </section>
+
+  <!-- ===================== CONFIG SCREEN ===================== -->
+  <section class="screen" id="screen-config">
+    <div class="topbar">
+      <button class="navbtn" id="btn-back-to-select">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
+        Back
+      </button>
+    </div>
+    <div class="config-header">
+      <div class="kicker" id="config-kicker">SET UP</div>
+      <h2 id="config-title">Type</h2>
+    </div>
+    <div id="config-fields"></div>
+    <div class="config-footer">
+      <button class="primary-btn" id="btn-start">Start</button>
+    </div>
+  </section>
+
+  <!-- ===================== RUN SCREEN ===================== -->
+  <section class="screen" id="screen-run">
+    <div class="run-top">
+      <button class="navbtn exit" id="btn-exit">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
+        Exit
+      </button>
+      <button class="navbtn" id="btn-big-toggle">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="14" rx="1"/><path d="M8 20h8"/></svg>
+        <span id="big-toggle-label">Big&nbsp;mode</span>
+      </button>
+    </div>
+
+    <div class="run-meta">
+      <div class="round-label" id="round-label">&nbsp;</div>
+      <div class="phase-label neutral" id="phase-label">READY</div>
+      <div class="time-display" id="time-display">00:00</div>
+      <div class="cap-flag" id="cap-flag">TIME CAP</div>
+      <div class="progress-track" id="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
+      <div class="laps" id="laps"></div>
+    </div>
+
+    <div class="run-controls">
+      <button class="ctrl-btn secondary" id="btn-reset">Reset</button>
+      <button class="ctrl-btn main" id="btn-toggle">Start</button>
+      <button class="ctrl-btn secondary" id="btn-lap" style="display:none;">Lap</button>
+      <button class="ctrl-btn secondary" id="btn-finish" style="display:none;">Finish</button>
+    </div>
+  </section>
+
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ===================== CONSTANTS ===================== */
+  var TYPES = [
+    { id:"amrap", name:"AMRAP", desc:"As many rounds as possible. Counts down." },
+    { id:"emom", name:"EMOM", desc:"Every minute on the minute. Ticks at each interval." },
+    { id:"tabata", name:"Tabata", desc:"Fixed work / rest rounds." },
+    { id:"interval", name:"Custom interval", desc:"Your own work / rest rounds." },
+    { id:"fortime", name:"For time", desc:"Counts up, optional time cap." },
+    { id:"stopwatch", name:"Stopwatch", desc:"Simple count up, with laps." },
+    { id:"hang", name:"Hang", desc:"1 minute dead hang from the bar." },
+    { id:"plank", name:"Plank", desc:"3 minute ladder: hands, elbows, hands, elbows." }
+  ];
+  var PHASED_TYPES = ["emom","tabata","interval","hang","plank"];
+  var PRESTART_SECONDS = 10;
+
+  var store = (function(){
+    try{
+      var t = "__bell_test__";
+      window.localStorage.setItem(t,"1");
+      window.localStorage.removeItem(t);
+      return window.localStorage;
+    }catch(e){ return null; }
+  })();
+  function saveCfg(type,cfg){
+    if(!store) return;
+    try{ store.setItem("bell_cfg_"+type, JSON.stringify(cfg)); }catch(e){}
+  }
+  function loadCfg(type){
+    if(!store) return null;
+    try{ var v = store.getItem("bell_cfg_"+type); return v?JSON.parse(v):null; }catch(e){ return null; }
+  }
+
+  /* ===================== AUDIO ===================== */
+  var actx = null;
+  function ctx(){
+    if(!actx){
+      var AC = window.AudioContext || window.webkitAudioContext;
+      actx = new AC();
+    }
+    if(actx.state === "suspended") actx.resume();
+    return actx;
+  }
+  function tone(freq,dur,vol,delay,type){
+    try{
+      var c = ctx();
+      var t0 = c.currentTime + (delay||0);
+      var osc = c.createOscillator();
+      var gain = c.createGain();
+      osc.type = type || "sine";
+      osc.frequency.setValueAtTime(freq,t0);
+      gain.gain.setValueAtTime(0,t0);
+      gain.gain.linearRampToValueAtTime(vol||0.35,t0+0.01);
+      gain.gain.exponentialRampToValueAtTime(0.0001,t0+dur);
+      osc.connect(gain).connect(c.destination);
+      osc.start(t0);
+      osc.stop(t0+dur+0.02);
+    }catch(e){}
+  }
+  var Sound = {
+    tick: function(){ tone(1500,0.06,0.25,0,"square"); },
+    countBeep: function(){ tone(880,0.12,0.35,0,"sine"); },
+    workStart: function(){ tone(1046,0.22,0.4,0,"sine"); },
+    restStart: function(){ tone(523,0.22,0.4,0,"sine"); },
+    horn: function(){
+      tone(220,0.5,0.5,0,"sawtooth");
+      tone(220,0.5,0.5,0.55,"sawtooth");
+    },
+    capHit: function(){
+      tone(660,0.15,0.4,0);
+      tone(440,0.3,0.4,0.18);
+    }
+  };
+
+  /* ===================== WAKE LOCK ===================== */
+  var wakeLock = null;
+  function requestWake(){
+    if("wakeLock" in navigator){
+      navigator.wakeLock.request("screen").then(function(wl){ wakeLock = wl; }).catch(function(){});
+    }
+  }
+  function releaseWake(){
+    if(wakeLock){ wakeLock.release().catch(function(){}); wakeLock = null; }
+  }
+  document.addEventListener("visibilitychange", function(){
+    if(document.visibilityState === "visible" && running) requestWake();
+  });
+
+  /* ===================== HELPERS ===================== */
+  function pad(n){ return (n<10?"0":"")+n; }
+  function fmt(totalSeconds){
+    totalSeconds = Math.max(0, Math.round(totalSeconds));
+    var h = Math.floor(totalSeconds/3600);
+    var m = Math.floor((totalSeconds%3600)/60);
+    var s = totalSeconds%60;
+    if(h>0) return h+":"+pad(m)+":"+pad(s);
+    return pad(m)+":"+pad(s);
+  }
+  function el(id){ return document.getElementById(id); }
+  function show(id){
+    document.querySelectorAll(".screen").forEach(function(s){ s.classList.remove("active"); });
+    el(id).classList.add("active");
+  }
+
+  /* ===================== STATE ===================== */
+  var currentType = null;
+  var currentConfig = {};
+  var running = false;
+  var paused = false;
+  var startTime = 0;
+  var pausedAt = 0;
+  var pausedAccum = 0;
+  var rafId = null;
+  var phases = [];        // for interval-style types: [{label,duration,kind}]
+  var lastPhaseIdx = -1;
+  var lastWholeSecond = -1;
+  var lapTimes = [];
+  var capSeconds = 0;
+  var capFired = false;
+  var finished = false;
+  var finalElapsed = 0;
+  var preStarting = false;
+  var preStartTimer = null;
+
+  /* ===================== BUILD SELECT GRID ===================== */
+  var grid = el("type-grid");
+  TYPES.forEach(function(t){
+    var card = document.createElement("button");
+    card.className = "type-card";
+    card.innerHTML = '<div class="name">'+t.name+'</div><div class="desc">'+t.desc+'</div>';
+    card.addEventListener("click", function(){ openConfig(t.id); });
+    grid.appendChild(card);
+  });
+
+  el("btn-back-to-select").addEventListener("click", function(){ show("screen-select"); });
+  el("btn-exit").addEventListener("click", function(){ stopRun(true); show("screen-select"); });
+
+  /* ===================== CONFIG SCREEN BUILDERS ===================== */
+  function chipRow(container, options, unit, selectedValue, onSelect, allowCustom, customDefault, customStep){
+    var row = document.createElement("div");
+    row.className = "chip-row";
+    var selected = { value: selectedValue, custom:false };
+
+    function markSelection(val, isCustom){
+      row.querySelectorAll(".chip").forEach(function(c){
+        c.classList.toggle("selected", !isCustom && parseFloat(c.dataset.val)===val);
+      });
+      var ci = row.querySelector(".custom-inline");
+      if(ci) ci.classList.toggle("selected", isCustom);
+    }
+
+    options.forEach(function(opt){
+      var chip = document.createElement("button");
+      chip.type = "button";
+      chip.className = "chip";
+      chip.dataset.val = opt.value;
+      chip.textContent = opt.label;
+      if(opt.value === selectedValue) chip.classList.add("selected");
+      chip.addEventListener("click", function(){
+        selected.value = opt.value; selected.custom = false;
+        markSelection(opt.value,false);
+        onSelect(opt.value);
+      });
+      row.appendChild(chip);
+    });
+
+    if(allowCustom){
+      var wrap = document.createElement("div");
+      wrap.className = "custom-inline";
+      var isPreset = options.some(function(o){ return o.value === selectedValue; });
+      if(!isPreset) wrap.classList.add("selected");
+      var input = document.createElement("input");
+      input.type = "number";
+      input.inputMode = "decimal";
+      input.min = "0";
+      input.step = customStep || 1;
+      input.value = isPreset ? customDefault : selectedValue;
+      var span = document.createElement("span");
+      span.textContent = unit || "";
+      wrap.appendChild(input);
+      wrap.appendChild(span);
+      input.addEventListener("focus", function(){ markSelection(parseFloat(input.value),true); });
+      input.addEventListener("input", function(){
+        var v = parseFloat(input.value);
+        if(!isNaN(v) && v>=0){ selected.value = v; selected.custom = true; markSelection(v,true); onSelect(v); }
+      });
+      row.appendChild(wrap);
+    }
+    container.appendChild(row);
+    return selected;
+  }
+
+  function fieldGroup(container, labelText){
+    var fg = document.createElement("div");
+    fg.className = "field-group";
+    var lbl = document.createElement("div");
+    lbl.className = "field-label";
+    lbl.textContent = labelText;
+    fg.appendChild(lbl);
+    container.appendChild(fg);
+    return fg;
+  }
+
+  function openConfig(typeId){
+    currentType = typeId;
+    var meta = TYPES.filter(function(t){ return t.id===typeId; })[0];
+    el("config-kicker").textContent = "SET UP";
+    el("config-title").textContent = meta.name;
+
+    var fields = el("config-fields");
+    fields.innerHTML = "";
+    var saved = loadCfg(typeId) || {};
+    var cfg = {};
+    currentConfig = cfg;
+    var startBtn = el("btn-start");
+    startBtn.textContent = "Start " + meta.name;
+
+    if(typeId === "stopwatch"){
+      fields.innerHTML = '<p style="color:var(--muted);font-size:.95rem;line-height:1.5;">No setup needed — just start counting up. Use Lap to mark splits.</p>';
+      currentConfig = {};
+    }
+
+    else if(typeId === "amrap"){
+      var g1 = fieldGroup(fields, "Duration");
+      var sel = chipRow(g1, [
+        {label:"10 min", value:10},{label:"15 min", value:15},
+        {label:"20 min", value:20},{label:"30 min", value:30}
+      ], "min", saved.minutes || 15, function(v){ cfg.minutes = v; }, true, 12);
+      cfg.minutes = saved.minutes || 15;
+    }
+
+    else if(typeId === "emom"){
+      var g2 = fieldGroup(fields, "Total duration");
+      chipRow(g2, [
+        {label:"10 min", value:10},{label:"15 min", value:15},
+        {label:"20 min", value:20},{label:"30 min", value:30}
+      ], "min", saved.totalMin || 10, function(v){ cfg.totalMin = v; }, true, 12);
+      cfg.totalMin = saved.totalMin || 10;
+
+      var g3 = fieldGroup(fields, "Interval length");
+      chipRow(g3, [
+        {label:"0:30", value:0.5},{label:"1:00", value:1},{label:"2:00", value:2}
+      ], "min", saved.intervalMin || 1, function(v){ cfg.intervalMin = v; }, true, 1, 0.25);
+      cfg.intervalMin = saved.intervalMin || 1;
+    }
+
+    else if(typeId === "tabata"){
+      var g4 = fieldGroup(fields, "Quick presets");
+      var presets = [
+        {label:"20/10 × 8", work:20, rest:10, rounds:8},
+        {label:"30/15 × 8", work:30, rest:15, rounds:8},
+        {label:"40/20 × 6", work:40, rest:20, rounds:6}
+      ];
+      var prow = document.createElement("div");
+      prow.className = "chip-row";
+      presets.forEach(function(p){
+        var chip = document.createElement("button");
+        chip.type="button"; chip.className="chip"; chip.textContent=p.label;
+        chip.addEventListener("click", function(){
+          cfg.work=p.work; cfg.rest=p.rest; cfg.rounds=p.rounds;
+          workSel.value=p.work; restSel.value=p.rest; roundsSel.value=p.rounds;
+          workInput.value=p.work; restInput.value=p.rest; roundsInput.value=p.rounds;
+        });
+        prow.appendChild(chip);
+      });
+      g4.appendChild(prow);
+
+      var g5 = fieldGroup(fields, "Work (seconds)");
+      var workInput = document.createElement("input");
+      workInput.type="number"; workInput.min="1";
+      workInput.value = saved.work || 20;
+      workInput.addEventListener("input", function(){ cfg.work = parseFloat(workInput.value)||20; });
+      g5.appendChild(workInput);
+      var workSel = { value: saved.work || 20 };
+
+      var g6 = fieldGroup(fields, "Rest (seconds)");
+      var restInput = document.createElement("input");
+      restInput.type="number"; restInput.min="0";
+      restInput.value = saved.rest || 10;
+      restInput.addEventListener("input", function(){ cfg.rest = parseFloat(restInput.value)||0; });
+      g6.appendChild(restInput);
+      var restSel = { value: saved.rest || 10 };
+
+      var g7 = fieldGroup(fields, "Rounds");
+      var roundsInput = document.createElement("input");
+      roundsInput.type="number"; roundsInput.min="1";
+      roundsInput.value = saved.rounds || 8;
+      roundsInput.addEventListener("input", function(){ cfg.rounds = parseFloat(roundsInput.value)||8; });
+      g7.appendChild(roundsInput);
+      var roundsSel = { value: saved.rounds || 8 };
+
+      cfg.work = saved.work || 20;
+      cfg.rest = saved.rest || 10;
+      cfg.rounds = saved.rounds || 8;
+    }
+
+    else if(typeId === "interval"){
+      var gA = fieldGroup(fields, "Quick presets");
+      var prow2 = document.createElement("div");
+      prow2.className = "chip-row";
+      [{label:"45/15 × 10",work:45,rest:15,rounds:10},{label:"60/30 × 5",work:60,rest:30,rounds:5}].forEach(function(p){
+        var chip = document.createElement("button");
+        chip.type="button"; chip.className="chip"; chip.textContent=p.label;
+        chip.addEventListener("click", function(){
+          cfg.work=p.work; cfg.rest=p.rest; cfg.rounds=p.rounds;
+          wI.value=p.work; rI.value=p.rest; roI.value=p.rounds;
+        });
+        prow2.appendChild(chip);
+      });
+      gA.appendChild(prow2);
+
+      var gB = fieldGroup(fields, "Work (seconds)");
+      var wI = document.createElement("input"); wI.type="number"; wI.min="1";
+      wI.value = saved.work || 45;
+      wI.addEventListener("input", function(){ cfg.work = parseFloat(wI.value)||45; });
+      gB.appendChild(wI);
+
+      var gC = fieldGroup(fields, "Rest (seconds)");
+      var rI = document.createElement("input"); rI.type="number"; rI.min="0";
+      rI.value = saved.rest || 15;
+      rI.addEventListener("input", function(){ cfg.rest = parseFloat(rI.value)||0; });
+      gC.appendChild(rI);
+
+      var gD = fieldGroup(fields, "Rounds");
+      var roI = document.createElement("input"); roI.type="number"; roI.min="1";
+      roI.value = saved.rounds || 10;
+      roI.addEventListener("input", function(){ cfg.rounds = parseFloat(roI.value)||10; });
+      gD.appendChild(roI);
+
+      cfg.work = saved.work || 45;
+      cfg.rest = saved.rest || 15;
+      cfg.rounds = saved.rounds || 10;
+    }
+
+    else if(typeId === "hang"){
+      fields.innerHTML = '<p style="color:var(--muted);font-size:.95rem;line-height:1.5;">60 second dead hang from the bar. No setup needed.</p>';
+      currentConfig = {};
+    }
+
+    else if(typeId === "plank"){
+      fields.innerHTML = '<p style="color:var(--muted);font-size:.95rem;line-height:1.5;">3 minute ladder — 60s on hands, 60s on elbows, 30s on hands, 30s on elbows. No setup needed.</p>';
+      currentConfig = {};
+    }
+
+    else if(typeId === "fortime"){
+      var gE = fieldGroup(fields, "Time cap");
+      var toggleRow = document.createElement("div");
+      toggleRow.className = "toggle-row";
+      var noCapChip = document.createElement("button");
+      noCapChip.type="button"; noCapChip.className="chip"; noCapChip.textContent="No cap";
+      var withCapChip = document.createElement("button");
+      withCapChip.type="button"; withCapChip.className="chip"; withCapChip.textContent="Set cap";
+      toggleRow.appendChild(noCapChip); toggleRow.appendChild(withCapChip);
+      gE.appendChild(toggleRow);
+
+      var gF = fieldGroup(fields, "Cap duration");
+      var capSel = chipRow(gF, [
+        {label:"10 min", value:10},{label:"15 min", value:15},
+        {label:"20 min", value:20},{label:"30 min", value:30}
+      ], "min", saved.capMin || 20, function(v){ cfg.capMin = v; }, true, 12);
+      cfg.capMin = saved.capMin || 20;
+      cfg.hasCap = saved.hasCap !== undefined ? saved.hasCap : false;
+
+      function refreshCapUI(){
+        noCapChip.classList.toggle("selected", !cfg.hasCap);
+        withCapChip.classList.toggle("selected", cfg.hasCap);
+        gF.style.opacity = cfg.hasCap ? "1" : ".35";
+        gF.style.pointerEvents = cfg.hasCap ? "auto" : "none";
+      }
+      noCapChip.addEventListener("click", function(){ cfg.hasCap=false; refreshCapUI(); });
+      withCapChip.addEventListener("click", function(){ cfg.hasCap=true; refreshCapUI(); });
+      refreshCapUI();
+    }
+
+    show("screen-config");
+  }
+
+  el("btn-start").addEventListener("click", function(){
+    saveCfg(currentType, currentConfig);
+    setupRun(currentType, currentConfig);
+    show("screen-run");
+  });
+
+  /* ===================== BUILD PHASES ===================== */
+  function buildPhases(type, cfg){
+    var out = [];
+    if(type === "emom"){
+      var totalSec = cfg.totalMin*60;
+      var intervalSec = cfg.intervalMin*60;
+      var n = Math.max(1, Math.round(totalSec/intervalSec));
+      for(var i=0;i<n;i++) out.push({label:"MINUTE "+(i+1)+" / "+n, duration:intervalSec, kind:"emom"});
+    } else if(type === "tabata" || type === "interval"){
+      for(var r=0;r<cfg.rounds;r++){
+        out.push({label:"WORK", duration:cfg.work, kind:"work", round:r+1});
+        if(cfg.rest>0 && r < cfg.rounds-1) out.push({label:"REST", duration:cfg.rest, kind:"rest", round:r+1});
+      }
+    } else if(type === "hang"){
+      out.push({label:"HANG", duration:60, kind:"work"});
+    } else if(type === "plank"){
+      out.push({label:"HANDS", duration:60, kind:"work"});
+      out.push({label:"ELBOWS", duration:60, kind:"rest"});
+      out.push({label:"HANDS", duration:30, kind:"work"});
+      out.push({label:"ELBOWS", duration:30, kind:"rest"});
+    }
+    return out;
+  }
+
+  /* ===================== SETUP / RUN ===================== */
+  function setupRun(type, cfg){
+    running = false; paused = false; pausedAccum = 0; lastPhaseIdx = -1; lastWholeSecond = -1;
+    lapTimes = []; capFired = false; finished = false; finalElapsed = 0;
+    el("laps").innerHTML = "";
+    el("btn-lap").style.display = "none";
+    el("btn-finish").style.display = "none";
+    el("btn-reset").style.display = "";
+    el("cap-flag").classList.remove("show");
+    el("screen-run").classList.remove("phase-work","phase-rest");
+
+    if(PHASED_TYPES.indexOf(type) !== -1){
+      phases = buildPhases(type, cfg);
+    } else {
+      phases = [];
+    }
+
+    if(type==="amrap"){
+      capSeconds = cfg.minutes*60;
+    } else if(type==="fortime" && cfg.hasCap){
+      capSeconds = cfg.capMin*60;
+    } else {
+      capSeconds = 0;
+    }
+
+    if(type==="stopwatch"){
+      el("btn-lap").style.display = "";
+    }
+    if(type==="fortime"){
+      el("btn-finish").style.display = "";
+    }
+
+    el("progress-track").classList.toggle("show", type==="amrap" || PHASED_TYPES.indexOf(type)!==-1 || (type==="fortime" && cfg.hasCap));
+
+    el("btn-toggle").textContent = "Start";
+    el("btn-toggle").classList.remove("running");
+    el("phase-label").textContent = "READY";
+    el("phase-label").className = "phase-label neutral";
+    el("round-label").innerHTML = "&nbsp;";
+    if(type==="amrap"){
+      el("time-display").textContent = fmt(capSeconds);
+    } else if(phases.length){
+      el("time-display").textContent = fmt(phases[0].duration);
+    } else {
+      el("time-display").textContent = "00:00";
+    }
+    el("progress-fill").style.width = "0%";
+    el("progress-fill").style.background = "var(--fg)";
+  }
+
+  el("btn-toggle").addEventListener("click", function(){
+    if(finished || preStarting) return;
+    if(!running){ startPreCountdown(); } else if(!paused){ pauseRun(); } else { resumeRun(); }
+  });
+  el("btn-reset").addEventListener("click", function(){
+    if(preStartTimer){ clearInterval(preStartTimer); preStartTimer=null; preStarting=false; }
+    setupRun(currentType, currentConfig);
+  });
+  el("btn-lap").addEventListener("click", function(){
+    if(!running) return;
+    var elapsed = getElapsed();
+    var prev = lapTimes.length ? lapTimes[lapTimes.length-1].total : 0;
+    lapTimes.push({total:elapsed, split:elapsed-prev});
+    renderLaps();
+  });
+  el("btn-finish").addEventListener("click", function(){
+    if(!running) return;
+    finalElapsed = getElapsed();
+    finished = true;
+    running = false;
+    if(rafId) cancelAnimationFrame(rafId);
+    releaseWake();
+    el("phase-label").textContent = "FINISHED";
+    el("phase-label").className = "phase-label neutral";
+    el("time-display").textContent = fmt(finalElapsed);
+    el("btn-toggle").textContent = "Done";
+    el("btn-finish").style.display = "none";
+  });
+
+  function getElapsed(){
+    if(paused) return (pausedAt - startTime - pausedAccum)/1000;
+    return (Date.now() - startTime - pausedAccum)/1000;
+  }
+
+  function startPreCountdown(){
+    preStarting = true;
+    var n = PRESTART_SECONDS;
+    el("phase-label").textContent = "GET READY";
+    el("phase-label").className = "phase-label neutral";
+    el("round-label").innerHTML = "&nbsp;";
+    el("time-display").textContent = String(n);
+    el("btn-toggle").textContent = "...";
+    Sound.tick();
+    preStartTimer = setInterval(function(){
+      n--;
+      if(n > 0){
+        el("time-display").textContent = String(n);
+        if(n<=3) Sound.countBeep(); else Sound.tick();
+      } else {
+        clearInterval(preStartTimer);
+        preStartTimer = null;
+        preStarting = false;
+        Sound.workStart();
+        startRun();
+      }
+    }, 1000);
+  }
+
+  function startRun(){
+    running = true; paused = false;
+    startTime = Date.now();
+    pausedAccum = 0;
+    requestWake();
+    el("btn-toggle").textContent = "Pause";
+    el("btn-toggle").classList.add("running");
+    tick();
+  }
+  function pauseRun(){
+    paused = true;
+    pausedAt = Date.now();
+    el("btn-toggle").textContent = "Resume";
+    if(rafId) cancelAnimationFrame(rafId);
+    releaseWake();
+  }
+  function resumeRun(){
+    pausedAccum += Date.now() - pausedAt;
+    paused = false;
+    el("btn-toggle").textContent = "Pause";
+    requestWake();
+    tick();
+  }
+  function stopRun(){
+    running = false; paused = false;
+    if(rafId) cancelAnimationFrame(rafId);
+    if(preStartTimer){ clearInterval(preStartTimer); preStartTimer = null; }
+    preStarting = false;
+    releaseWake();
+  }
+
+  function renderLaps(){
+    var box = el("laps");
+    box.innerHTML = "";
+    for(var i=lapTimes.length-1;i>=0;i--){
+      var row = document.createElement("div");
+      row.innerHTML = "<span>Lap "+(i+1)+"</span><span>"+fmt(lapTimes[i].split)+" &nbsp;·&nbsp; "+fmt(lapTimes[i].total)+"</span>";
+      box.appendChild(row);
+    }
+  }
+
+  /* ===================== MAIN TICK ===================== */
+  function tick(){
+    if(!running || paused){ return; }
+    var elapsed = getElapsed();
+    var wholeSec = Math.floor(elapsed);
+
+    if(currentType === "stopwatch"){
+      el("time-display").textContent = fmt(elapsed);
+    }
+
+    else if(currentType === "amrap"){
+      var remaining = capSeconds - elapsed;
+      el("phase-label").textContent = "WORK";
+      el("phase-label").className = "phase-label neutral";
+      el("time-display").textContent = fmt(Math.max(0,remaining));
+      el("progress-fill").style.width = Math.min(100, (elapsed/capSeconds)*100)+"%";
+      if(wholeSec !== lastWholeSecond){
+        var rem = Math.ceil(remaining);
+        if(rem<=3 && rem>0) Sound.countBeep();
+        if(rem<=0 && !capFired){ Sound.horn(); capFired = true; }
+      }
+      if(remaining<=0){
+        el("time-display").textContent = "00:00";
+        finishNoInput();
+        return;
+      }
+    }
+
+    else if(currentType === "fortime"){
+      el("phase-label").textContent = "WORK";
+      el("phase-label").className = "phase-label neutral";
+      el("time-display").textContent = fmt(elapsed);
+      if(capSeconds>0){
+        el("progress-fill").style.width = Math.min(100, (elapsed/capSeconds)*100)+"%";
+        if(elapsed>=capSeconds && !capFired){
+          capFired = true;
+          Sound.capHit();
+          el("cap-flag").classList.add("show");
+        }
+      }
+    }
+
+    else if(PHASED_TYPES.indexOf(currentType) !== -1){
+      var idx = 0, acc = 0;
+      for(idx=0; idx<phases.length; idx++){
+        if(elapsed < acc + phases[idx].duration) break;
+        acc += phases[idx].duration;
+      }
+      if(idx >= phases.length){
+        // completed
+        el("time-display").textContent = "00:00";
+        finishNoInput();
+        return;
+      }
+      var ph = phases[idx];
+      var into = elapsed - acc;
+      var remainingInPhase = ph.duration - into;
+
+      if(idx !== lastPhaseIdx){
+        lastPhaseIdx = idx;
+        el("screen-run").classList.remove("phase-work","phase-rest");
+        if(ph.kind === "work"){
+          Sound.workStart();
+          el("screen-run").classList.add("phase-work");
+          el("phase-label").className = "phase-label work";
+        } else if(ph.kind === "rest"){
+          Sound.restStart();
+          el("screen-run").classList.add("phase-rest");
+          el("phase-label").className = "phase-label rest";
+        } else {
+          Sound.tick(); setTimeout(Sound.tick,140); setTimeout(Sound.workStart,280);
+          el("phase-label").className = "phase-label neutral";
+        }
+      }
+      el("phase-label").textContent = ph.label;
+      el("time-display").textContent = fmt(remainingInPhase);
+
+      if(ph.round){
+        el("round-label").textContent = "Round "+ph.round+" of "+cfgRounds();
+      } else if(currentType==="emom"){
+        el("round-label").innerHTML = "&nbsp;";
+      }
+
+      var totalDur = phases.reduce(function(s,p){ return s+p.duration; },0);
+      el("progress-fill").style.width = Math.min(100,(elapsed/totalDur)*100)+"%";
+      el("progress-fill").style.background = ph.kind==="rest" ? "var(--rest)" : (ph.kind==="work" ? "var(--work)" : "var(--fg)");
+
+      if(wholeSec !== lastWholeSecond){
+        var remCeil = Math.ceil(remainingInPhase);
+        if(remCeil<=3 && remCeil>0 && ph.duration>4) Sound.tick();
+      }
+    }
+
+    lastWholeSecond = wholeSec;
+    rafId = requestAnimationFrame(tick);
+  }
+
+  function cfgRounds(){
+    return currentConfig.rounds || 0;
+  }
+
+  function finishNoInput(){
+    running = false;
+    if(rafId) cancelAnimationFrame(rafId);
+    releaseWake();
+    el("phase-label").textContent = "DONE";
+    el("phase-label").className = "phase-label neutral";
+    el("btn-toggle").textContent = "Done";
+    Sound.horn();
+  }
+
+  /* ===================== BIG / TV MODE ===================== */
+  function setBig(on){
+    document.body.classList.toggle("big-mode", on);
+    el("big-toggle-label").textContent = on ? "Exit big" : "Big mode";
+  }
+  el("btn-big-toggle").addEventListener("click", function(){
+    setBig(!document.body.classList.contains("big-mode"));
+  });
+  el("btn-big-from-select").addEventListener("click", function(){
+    document.body.classList.add("big-mode");
+    // Big mode from select screen just prepares; real effect shows on run screen.
+    document.body.classList.remove("big-mode");
+    setBig(true);
+  });
+
+})();
+</script>
+</body>
+</html>
