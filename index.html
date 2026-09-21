@@ -359,6 +359,105 @@
   }
   .ctrl-btn:active{opacity:.7;}
 
+  /* ---------- card panel + split layout ---------- */
+  .run-body{
+    flex:1 1 auto;
+    display:flex;
+    flex-direction:column;
+    min-height:0;
+  }
+  .timer-col{
+    flex:1 1 auto;
+    display:flex;
+    flex-direction:column;
+    justify-content:space-between;
+    min-height:0;
+    min-width:0;
+  }
+  .card-panel{
+    display:none;
+    align-items:center;
+    justify-content:center;
+    min-height:0;
+    min-width:0;
+    overflow:hidden;
+  }
+  .card-panel img{
+    max-width:100%;
+    max-height:100%;
+    object-fit:contain;
+    border-radius:var(--radius);
+    background:#fff;
+  }
+  /* Split side-by-side once there's room (TV / iPad landscape) */
+  body.split #app{max-width:1600px;}
+  @media (min-width:820px){
+    body.split .run-body{flex-direction:row; gap:18px;}
+    body.split .card-panel{display:flex; flex:1 1 46%;}
+    body.split .timer-col{flex:1 1 54%;}
+  }
+  /* Narrow screens: card stacks above, smaller, toggled on */
+  @media (max-width:819px){
+    body.split.card-open .card-panel{display:flex; flex:0 0 34%; margin-bottom:10px;}
+  }
+  body:not(.split) #btn-card-view{visibility:hidden;}
+
+  .card-grid{
+    display:grid;
+    grid-template-columns:repeat(2,1fr);
+    gap:10px;
+    flex:1 1 auto;
+    align-content:start;
+  }
+  @media (min-width:640px){
+    .card-grid{grid-template-columns:repeat(4,1fr);}
+  }
+  .card-choice{
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    padding:8px;
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+    align-items:stretch;
+  }
+  .card-choice.selected{border-color:var(--accent);}
+  .card-choice img{
+    width:100%;
+    aspect-ratio:3/4;
+    object-fit:cover;
+    background:#fff;
+    border-radius:var(--radius);
+  }
+  .card-choice .cname{
+    font-size:.8rem;
+    color:var(--muted);
+    text-align:left;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+  .card-choice.none-option{
+    align-items:center;
+    justify-content:center;
+    min-height:120px;
+    font-weight:700;
+  }
+  .cards-msg{
+    color:var(--muted);
+    font-size:.9rem;
+    line-height:1.5;
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    padding:14px;
+  }
+  .cards-msg code{
+    color:var(--fg);
+    background:var(--panel);
+    padding:.1em .35em;
+    border-radius:2px;
+  }
+
   @media (prefers-reduced-motion:reduce){
     *{transition:none !important;}
   }
@@ -371,10 +470,28 @@
   <section class="screen active" id="screen-select">
     <div class="topbar">
       <div class="brand">bell<span class="dot">.</span></div>
+      <button class="navbtn" id="btn-pick-card">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 15l5-5 4 4 3-3 6 6"/></svg>
+        <span id="card-btn-label">Card</span>
+      </button>
     </div>
     <div class="select-title">What are we running?</div>
     <div class="select-sub">Pick a timer type to configure it.</div>
     <div class="type-grid" id="type-grid"></div>
+  </section>
+
+  <!-- ===================== CARD PICKER SCREEN ===================== -->
+  <section class="screen" id="screen-cards">
+    <div class="topbar">
+      <button class="navbtn" id="btn-cards-back">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
+        Back
+      </button>
+      <button class="navbtn" id="btn-cards-refresh">Refresh</button>
+    </div>
+    <div class="select-title">Workout card</div>
+    <div class="select-sub" id="cards-sub">Shown beside the timer on screen.</div>
+    <div class="card-grid" id="card-grid"></div>
   </section>
 
   <!-- ===================== CONFIG SCREEN ===================== -->
@@ -402,22 +519,34 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
         Exit
       </button>
+      <button class="navbtn" id="btn-card-view">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 15l5-5 4 4 3-3 6 6"/></svg>
+        <span id="card-view-label">Card</span>
+      </button>
     </div>
 
-    <div class="run-meta">
-      <div class="round-label" id="round-label">&nbsp;</div>
-      <div class="phase-label neutral" id="phase-label">READY</div>
-      <div class="time-display" id="time-display">00:00</div>
-      <div class="cap-flag" id="cap-flag">TIME CAP</div>
-      <div class="progress-track" id="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
-      <div class="laps" id="laps"></div>
-    </div>
+    <div class="run-body" id="run-body">
+      <div class="card-panel" id="card-panel">
+        <img id="card-img" alt="Workout card">
+      </div>
 
-    <div class="run-controls">
-      <button class="ctrl-btn secondary" id="btn-reset">Reset</button>
-      <button class="ctrl-btn main" id="btn-toggle">Start</button>
-      <button class="ctrl-btn secondary" id="btn-lap" style="display:none;">Lap</button>
-      <button class="ctrl-btn secondary" id="btn-finish" style="display:none;">Finish</button>
+      <div class="timer-col">
+        <div class="run-meta">
+          <div class="round-label" id="round-label">&nbsp;</div>
+          <div class="phase-label neutral" id="phase-label">READY</div>
+          <div class="time-display" id="time-display">00:00</div>
+          <div class="cap-flag" id="cap-flag">TIME CAP</div>
+          <div class="progress-track" id="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
+          <div class="laps" id="laps"></div>
+        </div>
+
+        <div class="run-controls">
+          <button class="ctrl-btn secondary" id="btn-reset">Reset</button>
+          <button class="ctrl-btn main" id="btn-toggle">Start</button>
+          <button class="ctrl-btn secondary" id="btn-lap" style="display:none;">Lap</button>
+          <button class="ctrl-btn secondary" id="btn-finish" style="display:none;">Finish</button>
+        </div>
+      </div>
     </div>
   </section>
 
@@ -1093,6 +1222,181 @@
     Sound.horn();
   }
 
+  /* ===================== WORKOUT CARDS ===================== */
+  // Images live in a "cards/" folder in the repo. The app finds them
+  // automatically on GitHub Pages. If auto-discovery is unavailable,
+  // list filenames here manually as a fallback.
+  var MANUAL_CARDS = [
+    // "murph.png", "chest-and-back.jpg"
+  ];
+  var CARDS_FOLDER = "cards";
+  var IMG_RE = /\.(png|jpe?g|webp|gif|avif)$/i;
+
+  var cardList = [];
+  var selectedCard = null;
+
+  function prettyName(filename){
+    return filename
+      .replace(IMG_RE, "")
+      .replace(/[-_]+/g, " ")
+      .replace(/\s+/g, " ")
+      .trim()
+      .replace(/\b\w/g, function(c){ return c.toUpperCase(); });
+  }
+
+  function cardUrl(filename){
+    var base = location.pathname.replace(/[^/]*$/, "");
+    return base + CARDS_FOLDER + "/" + encodeURIComponent(filename);
+  }
+
+  function cachedCards(){
+    if(!store) return null;
+    try{ var v = store.getItem("bell_cards"); return v ? JSON.parse(v) : null; }catch(e){ return null; }
+  }
+  function cacheCards(list){
+    if(!store) return;
+    try{ store.setItem("bell_cards", JSON.stringify(list)); }catch(e){}
+  }
+
+  // Work out the GitHub repo from the Pages URL, e.g.
+  // https://username.github.io/bell-timer/  ->  username / bell-timer
+  function inferRepo(){
+    var host = location.hostname;
+    if(!/\.github\.io$/i.test(host)) return null;
+    var user = host.replace(/\.github\.io$/i, "");
+    var parts = location.pathname.split("/").filter(Boolean);
+    var repo = parts.length ? parts[0] : (user + ".github.io");
+    return { user:user, repo:repo };
+  }
+
+  function discoverCards(force, done){
+    var cached = cachedCards();
+    if(cached && cached.length && !force){
+      cardList = cached;
+      done(cardList, "cache");
+      return;
+    }
+    var info = inferRepo();
+    if(!info || typeof fetch !== "function"){
+      cardList = MANUAL_CARDS.slice();
+      done(cardList, cardList.length ? "manual" : "none");
+      return;
+    }
+    var api = "https://api.github.com/repos/" + info.user + "/" + info.repo +
+              "/contents/" + CARDS_FOLDER;
+    fetch(api)
+      .then(function(r){ if(!r.ok) throw new Error("http "+r.status); return r.json(); })
+      .then(function(data){
+        if(!Array.isArray(data)) throw new Error("bad payload");
+        var files = data
+          .filter(function(f){ return f.type === "file" && IMG_RE.test(f.name); })
+          .map(function(f){ return f.name; })
+          .sort(function(a,b){ return a.localeCompare(b); });
+        cardList = files;
+        cacheCards(files);
+        done(cardList, "github");
+      })
+      .catch(function(){
+        var fallback = cached && cached.length ? cached : MANUAL_CARDS.slice();
+        cardList = fallback;
+        done(cardList, fallback.length ? "fallback" : "none");
+      });
+  }
+
+  function setSelectedCard(filename){
+    selectedCard = filename || null;
+    if(store){
+      try{
+        if(selectedCard) store.setItem("bell_selected_card", selectedCard);
+        else store.removeItem("bell_selected_card");
+      }catch(e){}
+    }
+    document.body.classList.toggle("split", !!selectedCard);
+    el("card-btn-label").textContent = selectedCard ? prettyName(selectedCard) : "Card";
+    if(selectedCard){
+      el("card-img").src = cardUrl(selectedCard);
+      el("card-img").alt = prettyName(selectedCard);
+    } else {
+      el("card-img").removeAttribute("src");
+      document.body.classList.remove("card-open");
+    }
+  }
+
+  function renderCardGrid(list, source){
+    var grid2 = el("card-grid");
+    var sub = el("cards-sub");
+    grid2.innerHTML = "";
+
+    if(!list.length){
+      sub.textContent = "No cards found yet.";
+      var msg = document.createElement("div");
+      msg.className = "cards-msg";
+      msg.innerHTML = 'Add image files (PNG or JPG) to a folder named <code>cards</code> ' +
+                      'in your repo, then tap Refresh. Filenames become the labels, so ' +
+                      '<code>chest-and-back.png</code> shows up as "Chest And Back".';
+      grid2.appendChild(msg);
+      return;
+    }
+
+    sub.textContent = list.length + " card" + (list.length===1?"":"s") + " available.";
+
+    var none = document.createElement("button");
+    none.type = "button";
+    none.className = "card-choice none-option" + (selectedCard ? "" : " selected");
+    none.textContent = "No card";
+    none.addEventListener("click", function(){
+      setSelectedCard(null);
+      show("screen-select");
+    });
+    grid2.appendChild(none);
+
+    list.forEach(function(name){
+      var btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "card-choice" + (name === selectedCard ? " selected" : "");
+      var im = document.createElement("img");
+      im.src = cardUrl(name);
+      im.alt = prettyName(name);
+      im.loading = "lazy";
+      var label = document.createElement("div");
+      label.className = "cname";
+      label.textContent = prettyName(name);
+      btn.appendChild(im);
+      btn.appendChild(label);
+      btn.addEventListener("click", function(){
+        setSelectedCard(name);
+        show("screen-select");
+      });
+      grid2.appendChild(btn);
+    });
+  }
+
+  function openCardPicker(force){
+    show("screen-cards");
+    el("cards-sub").textContent = "Looking for cards\u2026";
+    el("card-grid").innerHTML = "";
+    discoverCards(!!force, function(list, source){
+      renderCardGrid(list, source);
+      focusFirst("screen-cards");
+    });
+  }
+
+  el("btn-pick-card").addEventListener("click", function(){ openCardPicker(false); });
+  el("btn-cards-back").addEventListener("click", function(){ show("screen-select"); });
+  el("btn-cards-refresh").addEventListener("click", function(){ openCardPicker(true); });
+  el("btn-card-view").addEventListener("click", function(){
+    document.body.classList.toggle("card-open");
+  });
+
+  // Restore last card choice on load
+  (function(){
+    var saved = null;
+    if(store){ try{ saved = store.getItem("bell_selected_card"); }catch(e){} }
+    if(saved) setSelectedCard(saved);
+    // Warm the list in the background so the picker opens instantly
+    discoverCards(false, function(){});
+  })();
+
   /* ===================== TV REMOTE FOCUS ===================== */
   // Move focus to the most useful control whenever the screen changes,
   // so a TV remote always has a starting point to navigate from.
@@ -1102,6 +1406,8 @@
       target = document.querySelector("#type-grid .type-card");
     } else if(screenId === "screen-config"){
       target = el("btn-start");
+    } else if(screenId === "screen-cards"){
+      target = document.querySelector("#card-grid .card-choice");
     } else if(screenId === "screen-run"){
       target = el("btn-toggle");
     }
@@ -1121,6 +1427,9 @@
         stopRun();
         show("screen-select");
       } else if(el("screen-config").classList.contains("active")){
+        e.preventDefault();
+        show("screen-select");
+      } else if(el("screen-cards").classList.contains("active")){
         e.preventDefault();
         show("screen-select");
       }
