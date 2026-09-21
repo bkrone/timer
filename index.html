@@ -142,7 +142,7 @@
   .type-grid{
     display:grid;
     grid-template-columns:repeat(2,1fr);
-    gap:10px;
+    gap:18px;
     flex:1 1 auto;
   }
   @media (min-width:640px){
@@ -151,12 +151,12 @@
   .type-card{
     border:1px solid var(--line);
     border-radius:var(--radius);
-    padding:16px 14px;
+    padding:20px 18px;
     text-align:left;
     display:flex;
     flex-direction:column;
     justify-content:space-between;
-    min-height:118px;
+    min-height:136px;
     transition:border-color .15s, background .15s;
   }
   .type-card:active{background:var(--panel); border-color:var(--accent);}
@@ -195,13 +195,13 @@
   .chip-row{
     display:flex;
     flex-wrap:wrap;
-    gap:8px;
+    gap:14px;
     align-items:center;
   }
   .chip{
     border:1px solid var(--line);
     border-radius:var(--radius);
-    padding:.6em 1em;
+    padding:.75em 1.2em;
     font-size:.95rem;
     font-variant-numeric:tabular-nums;
   }
@@ -344,14 +344,14 @@
   .run-controls{
     flex:0 0 auto;
     display:flex;
-    gap:12px;
+    gap:20px;
     padding:1em 0 .4em;
   }
   .ctrl-btn{
     flex:1;
     border:1px solid var(--line);
     border-radius:var(--radius);
-    padding:1em;
+    padding:1.25em 1em;
     font-size:1rem;
     font-weight:700;
     text-align:center;
@@ -414,7 +414,7 @@
   .card-grid{
     display:grid;
     grid-template-columns:repeat(2,1fr);
-    gap:10px;
+    gap:18px;
     flex:1 1 auto;
     align-content:start;
   }
@@ -424,7 +424,7 @@
   .card-choice{
     border:1px solid var(--line);
     border-radius:var(--radius);
-    padding:8px;
+    padding:10px;
     display:flex;
     flex-direction:column;
     gap:8px;
@@ -1519,13 +1519,27 @@
   }, true);
 
   // Samsung's pointer mode: keep the painted cursor in sync with hover
-  document.addEventListener("mouseover", function(e){
-    var t = e.target;
-    while(t && t !== document.body){
-      if(collectNav().indexOf(t) !== -1){ paintNav(t); return; }
-      t = t.parentNode;
+  // Samsung's remote in "pointer" mode moves an actual on-screen cursor a
+  // few pixels per press, rather than firing arrow keys. So instead of
+  // requiring the cursor to land exactly on a button, snap the highlight to
+  // whatever's nearest once the pointer gets within reach.
+  var MAGNET_RADIUS = 90;
+  function nearestNavTo(x, y){
+    var list = collectNav();
+    var best = null, bestDist = Infinity;
+    for(var i=0;i<list.length;i++){
+      var r = list[i].getBoundingClientRect();
+      var dx = Math.max(r.left - x, 0, x - r.right);
+      var dy = Math.max(r.top - y, 0, y - r.bottom);
+      var dist = Math.sqrt(dx*dx + dy*dy);
+      if(dist < bestDist){ bestDist = dist; best = list[i]; }
     }
-  });
+    return bestDist <= MAGNET_RADIUS ? best : null;
+  }
+  document.addEventListener("mousemove", function(e){
+    var hit = nearestNavTo(e.clientX, e.clientY);
+    if(hit && hit !== navCurrent) paintNav(hit);
+  }, { passive:true });
 
   // Called by show() on every screen change
   function focusFirst(screenId){
@@ -1550,6 +1564,28 @@
   });
 
   focusFirst("screen-select");
+
+  /* ===================== TEMP DEBUG OVERLAY ===================== */
+  // Open the page with ?debug on the TV to see exactly what the remote
+  // is actually sending (real key events vs. an emulated mouse pointer).
+  // Safe to leave in — completely invisible unless ?debug is in the URL.
+  if(location.search.indexOf("debug") !== -1){
+    var dbg = document.createElement("div");
+    dbg.style.cssText = "position:fixed;bottom:0;left:0;right:0;background:#000;"+
+      "color:#0f0;font:16px/1.4 monospace;padding:8px 10px;z-index:99999;"+
+      "white-space:pre-wrap;border-top:2px solid #0f0;";
+    dbg.textContent = "Waiting for remote input\u2026";
+    document.body.appendChild(dbg);
+    document.addEventListener("keydown", function(e){
+      dbg.textContent = "KEYDOWN  key=\""+e.key+"\"  keyCode="+e.keyCode;
+    }, true);
+    document.addEventListener("mousemove", function(e){
+      dbg.textContent = "MOUSEMOVE  x="+Math.round(e.clientX)+"  y="+Math.round(e.clientY);
+    });
+    document.addEventListener("click", function(e){
+      dbg.textContent += "   [CLICK at "+Math.round(e.clientX)+","+Math.round(e.clientY)+"]";
+    }, true);
+  }
 
 })();
 </script>
