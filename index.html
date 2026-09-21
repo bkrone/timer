@@ -1414,6 +1414,36 @@
 
   var navCurrent = null;
 
+  // Open the page with ?debug on the TV to see a running log of exactly
+  // what the remote sends and what our nav logic decides to do about it.
+  // Completely invisible/inert unless ?debug is in the URL.
+  var DEBUG = location.search.indexOf("debug") !== -1;
+  var dbgEl = null;
+  if(DEBUG){
+    dbgEl = document.createElement("div");
+    dbgEl.style.cssText = "position:fixed;bottom:0;left:0;right:0;max-height:44vh;"+
+      "overflow-y:auto;background:rgba(0,0,0,.92);color:#0f0;"+
+      "font:14px/1.35 monospace;padding:6px 10px;z-index:99999;"+
+      "white-space:pre-wrap;border-top:2px solid #0f0;";
+    document.body.appendChild(dbgEl);
+  }
+  function describeNode(n){
+    if(!n) return "none";
+    var s = n.tagName ? n.tagName.toLowerCase() : String(n);
+    if(n.id) s += "#"+n.id;
+    if(n.className && typeof n.className === "string") s += "."+n.className.trim().split(/\s+/).join(".");
+    var txt = (n.textContent||"").trim().replace(/\s+/g," ").slice(0,18);
+    if(txt) s += " \""+txt+"\"";
+    return s;
+  }
+  function dlog(msg){
+    if(!DEBUG) return;
+    var line = document.createElement("div");
+    line.textContent = msg;
+    dbgEl.insertBefore(line, dbgEl.firstChild);
+    while(dbgEl.childNodes.length > 20) dbgEl.removeChild(dbgEl.lastChild);
+  }
+
   function activeScreen(){ return document.querySelector(".screen.active"); }
 
   function collectNav(){
@@ -1538,8 +1568,36 @@
   }
   document.addEventListener("mousemove", function(e){
     var hit = nearestNavTo(e.clientX, e.clientY);
-    if(hit && hit !== navCurrent) paintNav(hit);
+    if(hit && hit !== navCurrent){
+      paintNav(hit);
+      dlog("highlight -> " + describeNode(hit));
+    }
   }, { passive:true });
+
+  // The remote's OK button fires a real click at the raw pointer position,
+  // which is often a few pixels off the button the magnet highlighted.
+  // Make OK always activate whatever is actually highlighted.
+  var dispatchingNavClick = false;
+  document.addEventListener("click", function(e){
+    dlog("click at "+Math.round(e.clientX)+","+Math.round(e.clientY)+
+         "  target="+describeNode(e.target)+"  current="+describeNode(navCurrent));
+    if(dispatchingNavClick){ dlog("  (redirected click passing through)"); return; }
+    if(!navCurrent){ dlog("  (nothing highlighted yet, ignoring)"); return; }
+    if(e.target === navCurrent || (navCurrent.contains && navCurrent.contains(e.target))){
+      dlog("  (click landed on the highlighted item, letting it proceed)");
+      return;
+    }
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    dlog("  -> redirecting to " + describeNode(navCurrent));
+    var target = navCurrent;
+    setTimeout(function(){
+      dispatchingNavClick = true;
+      try{ target.click(); dlog("  -> dispatched click on " + describeNode(target)); }
+      catch(err){ dlog("  !! click() threw: " + err); }
+      dispatchingNavClick = false;
+    }, 0);
+  }, true);
 
   // Called by show() on every screen change
   function focusFirst(screenId){
@@ -1564,28 +1622,6 @@
   });
 
   focusFirst("screen-select");
-
-  /* ===================== TEMP DEBUG OVERLAY ===================== */
-  // Open the page with ?debug on the TV to see exactly what the remote
-  // is actually sending (real key events vs. an emulated mouse pointer).
-  // Safe to leave in — completely invisible unless ?debug is in the URL.
-  if(location.search.indexOf("debug") !== -1){
-    var dbg = document.createElement("div");
-    dbg.style.cssText = "position:fixed;bottom:0;left:0;right:0;background:#000;"+
-      "color:#0f0;font:16px/1.4 monospace;padding:8px 10px;z-index:99999;"+
-      "white-space:pre-wrap;border-top:2px solid #0f0;";
-    dbg.textContent = "Waiting for remote input\u2026";
-    document.body.appendChild(dbg);
-    document.addEventListener("keydown", function(e){
-      dbg.textContent = "KEYDOWN  key=\""+e.key+"\"  keyCode="+e.keyCode;
-    }, true);
-    document.addEventListener("mousemove", function(e){
-      dbg.textContent = "MOUSEMOVE  x="+Math.round(e.clientX)+"  y="+Math.round(e.clientY);
-    });
-    document.addEventListener("click", function(e){
-      dbg.textContent += "   [CLICK at "+Math.round(e.clientX)+","+Math.round(e.clientY)+"]";
-    }, true);
-  }
 
 })();
 </script>
