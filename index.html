@@ -131,8 +131,54 @@
   .select-title{
     font-size:clamp(1.6rem,5vw,2.2rem);
     font-weight:700;
-    margin:.6em 0 .1em;
+    margin:.6em 0 .5em;
     letter-spacing:-.01em;
+  }
+  .card-select-bar{
+    width:100%;
+    display:flex;
+    align-items:center;
+    gap:14px;
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    padding:14px 16px;
+    margin-bottom:1.1em;
+    text-align:left;
+  }
+  .card-select-bar:active, .card-select-bar.nav-focus{
+    border-color:var(--accent);
+  }
+  .card-select-bar img{
+    width:44px;
+    height:44px;
+    object-fit:cover;
+    border-radius:var(--radius);
+    background:#fff;
+    flex:0 0 auto;
+  }
+  .csb-text{
+    display:flex;
+    flex-direction:column;
+    flex:1 1 auto;
+    min-width:0;
+  }
+  .csb-kicker{
+    color:var(--accent);
+    font-size:.78rem;
+    font-weight:700;
+    letter-spacing:.03em;
+  }
+  #card-select-label{
+    font-size:1.05rem;
+    font-weight:700;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+  .csb-chev{
+    font-size:1.6rem;
+    color:var(--muted);
+    flex:0 0 auto;
   }
   .select-sub{
     color:var(--muted);
@@ -323,23 +369,6 @@
     width:0%;
     transition:width .2s linear, background-color .3s;
   }
-  .laps{
-    width:100%;
-    max-width:420px;
-    max-height:22vh;
-    overflow-y:auto;
-    margin-top:1em;
-    font-variant-numeric:tabular-nums;
-    font-size:.9rem;
-    color:var(--muted);
-  }
-  .laps div{
-    display:flex;
-    justify-content:space-between;
-    padding:.35em 0;
-    border-bottom:1px solid var(--line);
-  }
-  .laps div span:first-child{color:var(--fg);}
 
   .run-controls{
     flex:0 0 auto;
@@ -467,6 +496,21 @@
     border-radius:2px;
   }
 
+  /* Expand the real clickable area beyond each button's visible edges.
+     A drifting TV pointer that "misses" by a few pixels should still hit
+     something real — this keeps native clicks landing on actual buttons
+     instead of empty space, which is what confuses the TV's own cursor. */
+  .type-card, .card-choice, .chip, .ctrl-btn, .primary-btn, .navbtn, .card-select-bar{
+    position:relative;
+    cursor:pointer;
+  }
+  .type-card::after, .card-choice::after, .chip::after,
+  .ctrl-btn::after, .primary-btn::after, .navbtn::after, .card-select-bar::after{
+    content:"";
+    position:absolute;
+    inset:-8px;
+  }
+
   @media (prefers-reduced-motion:reduce){
     *{transition:none !important;}
   }
@@ -479,12 +523,18 @@
   <section class="screen active" id="screen-select">
     <div class="topbar">
       <div class="brand">bell<span class="dot">.</span></div>
-      <button class="navbtn" id="btn-pick-card">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 15l5-5 4 4 3-3 6 6"/></svg>
-        <span id="card-btn-label">Card</span>
-      </button>
     </div>
     <div class="select-title">What are we running?</div>
+
+    <button class="card-select-bar" id="btn-pick-card">
+      <img id="card-select-thumb" alt="" style="display:none;">
+      <span class="csb-text">
+        <span class="csb-kicker">Workout card</span>
+        <span id="card-select-label">Choose a card</span>
+      </span>
+      <span class="csb-chev" aria-hidden="true">&rsaquo;</span>
+    </button>
+
     <div class="select-sub">Pick a timer type to configure it.</div>
     <div class="type-grid" id="type-grid"></div>
   </section>
@@ -546,13 +596,11 @@
           <div class="time-display" id="time-display">00:00</div>
           <div class="cap-flag" id="cap-flag">TIME CAP</div>
           <div class="progress-track" id="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
-          <div class="laps" id="laps"></div>
         </div>
 
         <div class="run-controls">
           <button class="ctrl-btn secondary" id="btn-reset">Reset</button>
           <button class="ctrl-btn main" id="btn-toggle">Start</button>
-          <button class="ctrl-btn secondary" id="btn-lap" style="display:none;">Lap</button>
           <button class="ctrl-btn secondary" id="btn-finish" style="display:none;">Finish</button>
         </div>
       </div>
@@ -569,14 +617,12 @@
   var TYPES = [
     { id:"amrap", name:"AMRAP", desc:"As many rounds as possible. Counts down." },
     { id:"emom", name:"EMOM", desc:"Every minute on the minute. Ticks at each interval." },
-    { id:"tabata", name:"Tabata", desc:"Fixed work / rest rounds." },
-    { id:"interval", name:"Custom interval", desc:"Your own work / rest rounds." },
+    { id:"interval", name:"Interval", desc:"Work / rest rounds — Tabata presets or your own." },
     { id:"fortime", name:"For time", desc:"Counts up, optional time cap." },
-    { id:"stopwatch", name:"Stopwatch", desc:"Simple count up, with laps." },
     { id:"hang", name:"Hang", desc:"1 minute dead hang from the bar." },
     { id:"plank", name:"Plank", desc:"3 minute ladder: hands, elbows, hands, elbows." }
   ];
-  var PHASED_TYPES = ["emom","tabata","interval","hang","plank"];
+  var PHASED_TYPES = ["emom","interval","hang","plank"];
   var PRESTART_SECONDS = 10;
 
   var store = (function(){
@@ -680,7 +726,6 @@
   var phases = [];        // for interval-style types: [{label,duration,kind}]
   var lastPhaseIdx = -1;
   var lastWholeSecond = -1;
-  var lapTimes = [];
   var capSeconds = 0;
   var capFired = false;
   var finished = false;
@@ -781,12 +826,7 @@
     var startBtn = el("btn-start");
     startBtn.textContent = "Start " + meta.name;
 
-    if(typeId === "stopwatch"){
-      fields.innerHTML = '<p style="color:var(--muted);font-size:.95rem;line-height:1.5;">No setup needed — just start counting up. Use Lap to mark splits.</p>';
-      currentConfig = {};
-    }
-
-    else if(typeId === "amrap"){
+    if(typeId === "amrap"){
       var g1 = fieldGroup(fields, "Duration");
       var sel = chipRow(g1, [
         {label:"10 min", value:10},{label:"15 min", value:15},
@@ -810,61 +850,17 @@
       cfg.intervalMin = saved.intervalMin || 1;
     }
 
-    else if(typeId === "tabata"){
-      var g4 = fieldGroup(fields, "Quick presets");
-      var presets = [
-        {label:"20/10 × 8", work:20, rest:10, rounds:8},
-        {label:"30/15 × 8", work:30, rest:15, rounds:8},
-        {label:"40/20 × 6", work:40, rest:20, rounds:6}
-      ];
-      var prow = document.createElement("div");
-      prow.className = "chip-row";
-      presets.forEach(function(p){
-        var chip = document.createElement("button");
-        chip.type="button"; chip.className="chip"; chip.textContent=p.label;
-        chip.addEventListener("click", function(){
-          cfg.work=p.work; cfg.rest=p.rest; cfg.rounds=p.rounds;
-          workSel.value=p.work; restSel.value=p.rest; roundsSel.value=p.rounds;
-          workInput.value=p.work; restInput.value=p.rest; roundsInput.value=p.rounds;
-        });
-        prow.appendChild(chip);
-      });
-      g4.appendChild(prow);
-
-      var g5 = fieldGroup(fields, "Work (seconds)");
-      var workInput = document.createElement("input");
-      workInput.type="number"; workInput.min="1";
-      workInput.value = saved.work || 20;
-      workInput.addEventListener("input", function(){ cfg.work = parseFloat(workInput.value)||20; });
-      g5.appendChild(workInput);
-      var workSel = { value: saved.work || 20 };
-
-      var g6 = fieldGroup(fields, "Rest (seconds)");
-      var restInput = document.createElement("input");
-      restInput.type="number"; restInput.min="0";
-      restInput.value = saved.rest || 10;
-      restInput.addEventListener("input", function(){ cfg.rest = parseFloat(restInput.value)||0; });
-      g6.appendChild(restInput);
-      var restSel = { value: saved.rest || 10 };
-
-      var g7 = fieldGroup(fields, "Rounds");
-      var roundsInput = document.createElement("input");
-      roundsInput.type="number"; roundsInput.min="1";
-      roundsInput.value = saved.rounds || 8;
-      roundsInput.addEventListener("input", function(){ cfg.rounds = parseFloat(roundsInput.value)||8; });
-      g7.appendChild(roundsInput);
-      var roundsSel = { value: saved.rounds || 8 };
-
-      cfg.work = saved.work || 20;
-      cfg.rest = saved.rest || 10;
-      cfg.rounds = saved.rounds || 8;
-    }
-
     else if(typeId === "interval"){
       var gA = fieldGroup(fields, "Quick presets");
       var prow2 = document.createElement("div");
       prow2.className = "chip-row";
-      [{label:"45/15 × 10",work:45,rest:15,rounds:10},{label:"60/30 × 5",work:60,rest:30,rounds:5}].forEach(function(p){
+      [
+        {label:"20/10 × 8", work:20, rest:10, rounds:8},
+        {label:"30/15 × 8", work:30, rest:15, rounds:8},
+        {label:"40/20 × 6", work:40, rest:20, rounds:6},
+        {label:"45/15 × 10", work:45, rest:15, rounds:10},
+        {label:"60/30 × 5", work:60, rest:30, rounds:5}
+      ].forEach(function(p){
         var chip = document.createElement("button");
         chip.type="button"; chip.className="chip"; chip.textContent=p.label;
         chip.addEventListener("click", function(){
@@ -877,25 +873,25 @@
 
       var gB = fieldGroup(fields, "Work (seconds)");
       var wI = document.createElement("input"); wI.type="number"; wI.min="1";
-      wI.value = saved.work || 45;
-      wI.addEventListener("input", function(){ cfg.work = parseFloat(wI.value)||45; });
+      wI.value = saved.work || 20;
+      wI.addEventListener("input", function(){ cfg.work = parseFloat(wI.value)||20; });
       gB.appendChild(wI);
 
       var gC = fieldGroup(fields, "Rest (seconds)");
       var rI = document.createElement("input"); rI.type="number"; rI.min="0";
-      rI.value = saved.rest || 15;
+      rI.value = saved.rest || 10;
       rI.addEventListener("input", function(){ cfg.rest = parseFloat(rI.value)||0; });
       gC.appendChild(rI);
 
       var gD = fieldGroup(fields, "Rounds");
       var roI = document.createElement("input"); roI.type="number"; roI.min="1";
-      roI.value = saved.rounds || 10;
-      roI.addEventListener("input", function(){ cfg.rounds = parseFloat(roI.value)||10; });
+      roI.value = saved.rounds || 8;
+      roI.addEventListener("input", function(){ cfg.rounds = parseFloat(roI.value)||8; });
       gD.appendChild(roI);
 
-      cfg.work = saved.work || 45;
-      cfg.rest = saved.rest || 15;
-      cfg.rounds = saved.rounds || 10;
+      cfg.work = saved.work || 20;
+      cfg.rest = saved.rest || 10;
+      cfg.rounds = saved.rounds || 8;
     }
 
     else if(typeId === "hang"){
@@ -955,7 +951,7 @@
       var intervalSec = cfg.intervalMin*60;
       var n = Math.max(1, Math.round(totalSec/intervalSec));
       for(var i=0;i<n;i++) out.push({label:"MINUTE "+(i+1)+" / "+n, duration:intervalSec, kind:"emom"});
-    } else if(type === "tabata" || type === "interval"){
+    } else if(type === "interval"){
       for(var r=0;r<cfg.rounds;r++){
         out.push({label:"WORK", duration:cfg.work, kind:"work", round:r+1});
         if(cfg.rest>0 && r < cfg.rounds-1) out.push({label:"REST", duration:cfg.rest, kind:"rest", round:r+1});
@@ -974,9 +970,7 @@
   /* ===================== SETUP / RUN ===================== */
   function setupRun(type, cfg){
     running = false; paused = false; pausedAccum = 0; lastPhaseIdx = -1; lastWholeSecond = -1;
-    lapTimes = []; capFired = false; finished = false; finalElapsed = 0;
-    el("laps").innerHTML = "";
-    el("btn-lap").style.display = "none";
+    capFired = false; finished = false; finalElapsed = 0;
     el("btn-finish").style.display = "none";
     el("btn-reset").style.display = "";
     el("cap-flag").classList.remove("show");
@@ -996,9 +990,6 @@
       capSeconds = 0;
     }
 
-    if(type==="stopwatch"){
-      el("btn-lap").style.display = "";
-    }
     if(type==="fortime"){
       el("btn-finish").style.display = "";
     }
@@ -1028,13 +1019,6 @@
   el("btn-reset").addEventListener("click", function(){
     if(preStartTimer){ clearInterval(preStartTimer); preStartTimer=null; preStarting=false; }
     setupRun(currentType, currentConfig);
-  });
-  el("btn-lap").addEventListener("click", function(){
-    if(!running) return;
-    var elapsed = getElapsed();
-    var prev = lapTimes.length ? lapTimes[lapTimes.length-1].total : 0;
-    lapTimes.push({total:elapsed, split:elapsed-prev});
-    renderLaps();
   });
   el("btn-finish").addEventListener("click", function(){
     if(!running) return;
@@ -1110,27 +1094,13 @@
     releaseWake();
   }
 
-  function renderLaps(){
-    var box = el("laps");
-    box.innerHTML = "";
-    for(var i=lapTimes.length-1;i>=0;i--){
-      var row = document.createElement("div");
-      row.innerHTML = "<span>Lap "+(i+1)+"</span><span>"+fmt(lapTimes[i].split)+" &nbsp;·&nbsp; "+fmt(lapTimes[i].total)+"</span>";
-      box.appendChild(row);
-    }
-  }
-
   /* ===================== MAIN TICK ===================== */
   function tick(){
     if(!running || paused){ return; }
     var elapsed = getElapsed();
     var wholeSec = Math.floor(elapsed);
 
-    if(currentType === "stopwatch"){
-      el("time-display").textContent = fmt(elapsed);
-    }
-
-    else if(currentType === "amrap"){
+    if(currentType === "amrap"){
       var remaining = capSeconds - elapsed;
       el("phase-label").textContent = "WORK";
       el("phase-label").className = "phase-label neutral";
@@ -1321,11 +1291,17 @@
       }catch(e){}
     }
     document.body.classList.toggle("split", !!selectedCard);
-    el("card-btn-label").textContent = selectedCard ? prettyName(selectedCard) : "Card";
+    el("card-select-label").textContent = selectedCard ? prettyName(selectedCard) : "Choose a card";
+    var thumb = el("card-select-thumb");
     if(selectedCard){
+      thumb.src = cardUrl(selectedCard);
+      thumb.alt = prettyName(selectedCard);
+      thumb.style.display = "";
       el("card-img").src = cardUrl(selectedCard);
       el("card-img").alt = prettyName(selectedCard);
     } else {
+      thumb.removeAttribute("src");
+      thumb.style.display = "none";
       el("card-img").removeAttribute("src");
       document.body.classList.remove("card-open");
     }
@@ -1602,7 +1578,7 @@
   // Called by show() on every screen change
   function focusFirst(screenId){
     var pick;
-    if(screenId === "screen-select")      pick = "#type-grid .type-card";
+    if(screenId === "screen-select")      pick = "#btn-pick-card";
     else if(screenId === "screen-config") pick = "#btn-start";
     else if(screenId === "screen-cards")  pick = "#card-grid .card-choice";
     else if(screenId === "screen-run")    pick = "#btn-toggle";
