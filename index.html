@@ -439,6 +439,34 @@
     body.split.card-open .card-panel{display:flex; flex:0 0 34%; margin-bottom:10px;}
   }
   body:not(.split) #btn-card-view{visibility:hidden;}
+  /* Hang and Plank never show a card, regardless of what's selected */
+  body.force-full .card-panel{display:none !important;}
+  body.force-full .timer-col{flex:1 1 100% !important;}
+
+  .cardonly-wrap{
+    flex:1 1 auto;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    min-height:0;
+  }
+  .cardonly-wrap img{
+    max-width:100%;
+    max-height:100%;
+    object-fit:contain;
+    border-radius:var(--radius);
+    background:#fff;
+  }
+  .cardonly-empty{
+    flex:1 1 auto;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:1.2em;
+    color:var(--muted);
+    font-size:1.05rem;
+  }
 
   .card-grid{
     display:grid;
@@ -551,6 +579,24 @@
     <div class="select-title">Workout card</div>
     <div class="select-sub" id="cards-sub">Shown beside the timer on screen.</div>
     <div class="card-grid" id="card-grid"></div>
+  </section>
+
+  <!-- ===================== CARD ONLY SCREEN ===================== -->
+  <section class="screen" id="screen-cardonly">
+    <div class="run-top">
+      <button class="navbtn exit" id="btn-cardonly-exit">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
+        Exit
+      </button>
+      <button class="navbtn" id="btn-cardonly-change">Change</button>
+    </div>
+    <div class="cardonly-wrap" id="cardonly-wrap">
+      <img id="cardonly-img" alt="Workout card">
+    </div>
+    <div class="cardonly-empty" id="cardonly-empty" style="display:none;">
+      <p>No card selected yet.</p>
+      <button class="primary-btn" id="btn-cardonly-pick">Choose a card</button>
+    </div>
   </section>
 
   <!-- ===================== CONFIG SCREEN ===================== -->
@@ -742,6 +788,13 @@
     card.addEventListener("click", function(){ openConfig(t.id); });
     grid.appendChild(card);
   });
+  (function(){
+    var viewCard = document.createElement("button");
+    viewCard.className = "type-card";
+    viewCard.innerHTML = '<div class="name">View card</div><div class="desc">Just show the workout card — no timer.</div>';
+    viewCard.addEventListener("click", function(){ openCardOnly(); });
+    grid.appendChild(viewCard);
+  })();
 
   el("btn-back-to-select").addEventListener("click", function(){ show("screen-select"); });
   el("btn-exit").addEventListener("click", function(){ stopRun(true); show("screen-select"); });
@@ -975,6 +1028,12 @@
     el("btn-reset").style.display = "";
     el("cap-flag").classList.remove("show");
     el("screen-run").classList.remove("phase-work","phase-rest");
+
+    // Hang and Plank are always full-width timers — no card display, even
+    // if a card happens to be selected for other workouts.
+    var noCard = (type === "hang" || type === "plank");
+    document.body.classList.toggle("force-full", noCard);
+    el("btn-card-view").style.display = noCard ? "none" : "";
 
     if(PHASED_TYPES.indexOf(type) !== -1){
       phases = buildPhases(type, cfg);
@@ -1307,6 +1366,13 @@
     }
   }
 
+  var cardPickerReturn = "screen-select";
+
+  function finishCardPick(){
+    show(cardPickerReturn);
+    if(cardPickerReturn === "screen-cardonly") refreshCardOnlyView();
+  }
+
   function renderCardGrid(list, source){
     var grid2 = el("card-grid");
     var sub = el("cards-sub");
@@ -1331,7 +1397,7 @@
     none.textContent = "No card";
     none.addEventListener("click", function(){
       setSelectedCard(null);
-      show("screen-select");
+      finishCardPick();
     });
     grid2.appendChild(none);
 
@@ -1350,13 +1416,14 @@
       btn.appendChild(label);
       btn.addEventListener("click", function(){
         setSelectedCard(name);
-        show("screen-select");
+        finishCardPick();
       });
       grid2.appendChild(btn);
     });
   }
 
-  function openCardPicker(force){
+  function openCardPicker(force, returnScreen){
+    cardPickerReturn = returnScreen || "screen-select";
     show("screen-cards");
     el("cards-sub").textContent = "Looking for cards\u2026";
     el("card-grid").innerHTML = "";
@@ -1366,9 +1433,31 @@
     });
   }
 
-  el("btn-pick-card").addEventListener("click", function(){ openCardPicker(false); });
-  el("btn-cards-back").addEventListener("click", function(){ show("screen-select"); });
-  el("btn-cards-refresh").addEventListener("click", function(){ openCardPicker(true); });
+  function refreshCardOnlyView(){
+    var wrap = el("cardonly-wrap");
+    var empty = el("cardonly-empty");
+    if(selectedCard){
+      el("cardonly-img").src = cardUrl(selectedCard);
+      el("cardonly-img").alt = prettyName(selectedCard);
+      wrap.style.display = "";
+      empty.style.display = "none";
+    } else {
+      wrap.style.display = "none";
+      empty.style.display = "flex";
+    }
+  }
+
+  function openCardOnly(){
+    refreshCardOnlyView();
+    show("screen-cardonly");
+  }
+
+  el("btn-pick-card").addEventListener("click", function(){ openCardPicker(false, "screen-select"); });
+  el("btn-cards-back").addEventListener("click", function(){ show(cardPickerReturn); });
+  el("btn-cards-refresh").addEventListener("click", function(){ openCardPicker(true, cardPickerReturn); });
+  el("btn-cardonly-exit").addEventListener("click", function(){ show("screen-select"); });
+  el("btn-cardonly-change").addEventListener("click", function(){ openCardPicker(false, "screen-cardonly"); });
+  el("btn-cardonly-pick").addEventListener("click", function(){ openCardPicker(false, "screen-cardonly"); });
   el("btn-card-view").addEventListener("click", function(){
     document.body.classList.toggle("card-open");
   });
@@ -1487,7 +1576,8 @@
   function goBack(){
     if(el("screen-run").classList.contains("active")){ stopRun(); show("screen-select"); return true; }
     if(el("screen-config").classList.contains("active")){ show("screen-select"); return true; }
-    if(el("screen-cards").classList.contains("active")){ show("screen-select"); return true; }
+    if(el("screen-cards").classList.contains("active")){ show(cardPickerReturn); return true; }
+    if(el("screen-cardonly").classList.contains("active")){ show("screen-select"); return true; }
     return false;
   }
 
@@ -1581,6 +1671,7 @@
     if(screenId === "screen-select")      pick = "#btn-pick-card";
     else if(screenId === "screen-config") pick = "#btn-start";
     else if(screenId === "screen-cards")  pick = "#card-grid .card-choice";
+    else if(screenId === "screen-cardonly") pick = selectedCard ? "#btn-cardonly-exit" : "#btn-cardonly-pick";
     else if(screenId === "screen-run")    pick = "#btn-toggle";
     setTimeout(function(){
       var target = pick ? document.querySelector(pick) : null;
