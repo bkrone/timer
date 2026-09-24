@@ -9,8 +9,9 @@
 <meta name="apple-mobile-web-app-title" content="Bell">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#000000">
-<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'%3E%3Crect width='180' height='180' fill='%23000'/%3E%3Ccircle cx='90' cy='98' r='52' fill='none' stroke='%23F5F2ED' stroke-width='7'/%3E%3Cline x1='90' y1='98' x2='90' y2='64' stroke='%23FF5A1F' stroke-width='7' stroke-linecap='round'/%3E%3Cline x1='90' y1='98' x2='114' y2='98' stroke='%23FF5A1F' stroke-width='7' stroke-linecap='round'/%3E%3Crect x='76' y='30' width='28' height='12' rx='4' fill='%23F5F2ED'/%3E%3C/svg%3E">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'%3E%3Crect width='180' height='180' fill='%23000'/%3E%3Ccircle cx='90' cy='98' r='52' fill='none' stroke='%23F5F2ED' stroke-width='7'/%3E%3Cline x1='90' y1='98' x2='90' y2='64' stroke='%23FF5A1F' stroke-width='7' stroke-linecap='round'/%3E%3Cline x1='90' y1='98' x2='114' y2='98' stroke='%23FF5A1F' stroke-width='7' stroke-linecap='round'/%3E%3Crect x='76' y='30' width='28' height='12' rx='4' fill='%23F5F2ED'/%3E%3C/svg%3E">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/icon-32.png">
+<link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png">
 <style>
   :root{
     --bg:#000000;
@@ -82,8 +83,13 @@
     border-radius:var(--radius);
     padding:.6em .5em;
     font-variant-numeric:tabular-nums;
+    -moz-appearance:textfield;
   }
-  input[type="number"]::-webkit-inner-spin-button{opacity:.6;}
+  input[type="number"]::-webkit-inner-spin-button,
+  input[type="number"]::-webkit-outer-spin-button{
+    -webkit-appearance:none;
+    margin:0;
+  }
 
   #app{
     height:100%;
@@ -255,23 +261,54 @@
     border-color:var(--accent);
     color:var(--accent);
   }
-  .custom-inline{
-    display:flex;
+  .stepper{
+    display:inline-flex;
     align-items:center;
-    gap:.5em;
     border:1px solid var(--line);
     border-radius:var(--radius);
-    padding:.4em .8em;
+    overflow:hidden;
+  }
+  .stepper-btn{
+    width:52px;
+    height:52px;
+    min-width:52px;
+    flex:0 0 auto;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:1.5rem;
+    font-weight:800;
+    line-height:1;
+    background:var(--panel);
+    color:var(--fg);
+    border:none;
+    border-radius:0;
+  }
+  .stepper-btn:active, .stepper-btn.nav-focus{
+    background:var(--accent) !important;
+    color:#000 !important;
+  }
+  .stepper input[type="number"]{
+    width:3.6em;
+    text-align:center;
+    border:none;
+    border-left:1px solid var(--line);
+    border-right:1px solid var(--line);
+    border-radius:0;
+    padding:.6em .2em;
+    background:var(--bg);
+    font-size:1rem;
+  }
+  .stepper-unit{
+    color:var(--muted);
+    font-size:.85rem;
+    padding:0 .9em 0 .6em;
+    background:var(--panel);
+    align-self:stretch;
+    display:flex;
+    align-items:center;
   }
   .custom-inline.selected{border-color:var(--accent);}
-  .custom-inline input{
-    width:4.5em;
-    border:none;
-    background:none;
-    padding:.3em 0;
-    font-size:.95rem;
-  }
-  .custom-inline span{color:var(--muted); font-size:.85rem;}
   .toggle-row{
     display:flex;
     gap:8px;
@@ -396,6 +433,17 @@
     border-color:var(--fg);
   }
   .ctrl-btn:active{opacity:.7;}
+  .ctrl-btn.bottom-exit{
+    width:100%;
+    margin-top:12px;
+    padding:.9em 1em;
+    color:var(--muted);
+    border-color:var(--line);
+    font-weight:700;
+  }
+  .ctrl-btn.bottom-exit:active, .ctrl-btn.bottom-exit.nav-focus{
+    color:var(--fg);
+  }
 
   /* ---------- card panel + split layout ---------- */
   .run-body{
@@ -439,7 +487,7 @@
     body.split.card-open .card-panel{display:flex; flex:0 0 34%; margin-bottom:10px;}
   }
   body:not(.split) #btn-card-view{visibility:hidden;}
-  /* Hang and Plank never show a card, regardless of what's selected */
+  /* Plank never shows a card, regardless of what's selected */
   body.force-full .card-panel{display:none !important;}
   body.force-full .timer-col{flex:1 1 100% !important;}
 
@@ -537,6 +585,21 @@
     content:"";
     position:absolute;
     inset:-8px;
+  }
+  /* Stepper buttons sit flush against their neighbors, so only expand the
+     hit area vertically — expanding sideways would steal clicks meant for
+     the input or the button right next to it. */
+  .stepper-btn{
+    position:relative;
+    cursor:pointer;
+  }
+  .stepper-btn::after{
+    content:"";
+    position:absolute;
+    top:-10px;
+    bottom:-10px;
+    left:0;
+    right:0;
   }
 
   @media (prefers-reduced-motion:reduce){
@@ -649,6 +712,7 @@
           <button class="ctrl-btn main" id="btn-toggle">Start</button>
           <button class="ctrl-btn secondary" id="btn-finish" style="display:none;">Finish</button>
         </div>
+        <button class="ctrl-btn bottom-exit" id="btn-exit-bottom">Exit</button>
       </div>
     </div>
   </section>
@@ -665,10 +729,9 @@
     { id:"emom", name:"EMOM", desc:"Every minute on the minute. Ticks at each interval." },
     { id:"interval", name:"Interval", desc:"Work / rest rounds — Tabata presets or your own." },
     { id:"fortime", name:"For time", desc:"Counts up, optional time cap." },
-    { id:"hang", name:"Hang", desc:"1 minute dead hang from the bar." },
     { id:"plank", name:"Plank", desc:"3 minute ladder: hands, elbows, hands, elbows." }
   ];
-  var PHASED_TYPES = ["emom","interval","hang","plank"];
+  var PHASED_TYPES = ["emom","interval","plank"];
   var PRESTART_SECONDS = 10;
 
   var store = (function(){
@@ -798,8 +861,53 @@
 
   el("btn-back-to-select").addEventListener("click", function(){ show("screen-select"); });
   el("btn-exit").addEventListener("click", function(){ stopRun(true); show("screen-select"); });
+  el("btn-exit-bottom").addEventListener("click", function(){ stopRun(true); show("screen-select"); });
 
   /* ===================== CONFIG SCREEN BUILDERS ===================== */
+  function makeStepper(step, min, max, initialValue, unitLabel, extraClass){
+    step = step || 1;
+    var wrap = document.createElement("div");
+    wrap.className = "stepper" + (extraClass ? " " + extraClass : "");
+    var minus = document.createElement("button");
+    minus.type = "button"; minus.className = "stepper-btn"; minus.textContent = "\u2212";
+    minus.setAttribute("aria-label", "Decrease");
+    var input = document.createElement("input");
+    input.type = "number";
+    input.inputMode = "decimal";
+    if(typeof min === "number") input.min = String(min);
+    if(typeof max === "number") input.max = String(max);
+    input.step = step;
+    input.value = initialValue;
+    var plus = document.createElement("button");
+    plus.type = "button"; plus.className = "stepper-btn"; plus.textContent = "+";
+    plus.setAttribute("aria-label", "Increase");
+
+    function clamp(v){
+      if(typeof min === "number") v = Math.max(min, v);
+      if(typeof max === "number") v = Math.min(max, v);
+      return v;
+    }
+    function bump(delta){
+      var cur = parseFloat(input.value);
+      if(isNaN(cur)) cur = 0;
+      input.value = clamp(cur + delta);
+      input.dispatchEvent(new Event("input", { bubbles:true }));
+    }
+    minus.addEventListener("click", function(){ bump(-step); });
+    plus.addEventListener("click", function(){ bump(step); });
+
+    wrap.appendChild(minus);
+    wrap.appendChild(input);
+    wrap.appendChild(plus);
+    if(unitLabel){
+      var span = document.createElement("span");
+      span.className = "stepper-unit";
+      span.textContent = unitLabel;
+      wrap.appendChild(span);
+    }
+    return { wrap: wrap, input: input };
+  }
+
   function chipRow(container, options, unit, selectedValue, onSelect, allowCustom, customDefault, customStep){
     var row = document.createElement("div");
     row.className = "chip-row";
@@ -829,20 +937,11 @@
     });
 
     if(allowCustom){
-      var wrap = document.createElement("div");
-      wrap.className = "custom-inline";
       var isPreset = options.some(function(o){ return o.value === selectedValue; });
+      var initVal = isPreset ? customDefault : selectedValue;
+      var st = makeStepper(customStep || 1, 0, null, initVal, unit, "custom-inline");
+      var wrap = st.wrap, input = st.input;
       if(!isPreset) wrap.classList.add("selected");
-      var input = document.createElement("input");
-      input.type = "number";
-      input.inputMode = "decimal";
-      input.min = "0";
-      input.step = customStep || 1;
-      input.value = isPreset ? customDefault : selectedValue;
-      var span = document.createElement("span");
-      span.textContent = unit || "";
-      wrap.appendChild(input);
-      wrap.appendChild(span);
       input.addEventListener("focus", function(){ markSelection(parseFloat(input.value),true); });
       input.addEventListener("input", function(){
         var v = parseFloat(input.value);
@@ -925,31 +1024,26 @@
       gA.appendChild(prow2);
 
       var gB = fieldGroup(fields, "Work (seconds)");
-      var wI = document.createElement("input"); wI.type="number"; wI.min="1";
-      wI.value = saved.work || 20;
+      var stW = makeStepper(5, 1, null, saved.work || 20);
+      var wI = stW.input;
       wI.addEventListener("input", function(){ cfg.work = parseFloat(wI.value)||20; });
-      gB.appendChild(wI);
+      gB.appendChild(stW.wrap);
 
       var gC = fieldGroup(fields, "Rest (seconds)");
-      var rI = document.createElement("input"); rI.type="number"; rI.min="0";
-      rI.value = saved.rest || 10;
+      var stR = makeStepper(5, 0, null, saved.rest || 10);
+      var rI = stR.input;
       rI.addEventListener("input", function(){ cfg.rest = parseFloat(rI.value)||0; });
-      gC.appendChild(rI);
+      gC.appendChild(stR.wrap);
 
       var gD = fieldGroup(fields, "Rounds");
-      var roI = document.createElement("input"); roI.type="number"; roI.min="1";
-      roI.value = saved.rounds || 8;
+      var stRo = makeStepper(1, 1, null, saved.rounds || 8);
+      var roI = stRo.input;
       roI.addEventListener("input", function(){ cfg.rounds = parseFloat(roI.value)||8; });
-      gD.appendChild(roI);
+      gD.appendChild(stRo.wrap);
 
       cfg.work = saved.work || 20;
       cfg.rest = saved.rest || 10;
       cfg.rounds = saved.rounds || 8;
-    }
-
-    else if(typeId === "hang"){
-      fields.innerHTML = '<p style="color:var(--muted);font-size:.95rem;line-height:1.5;">60 second dead hang from the bar. No setup needed.</p>';
-      currentConfig = {};
     }
 
     else if(typeId === "plank"){
@@ -1009,8 +1103,6 @@
         out.push({label:"WORK", duration:cfg.work, kind:"work", round:r+1});
         if(cfg.rest>0 && r < cfg.rounds-1) out.push({label:"REST", duration:cfg.rest, kind:"rest", round:r+1});
       }
-    } else if(type === "hang"){
-      out.push({label:"HANG", duration:60, kind:"work"});
     } else if(type === "plank"){
       out.push({label:"HANDS", duration:60, kind:"work"});
       out.push({label:"ELBOWS", duration:60, kind:"rest"});
@@ -1029,9 +1121,9 @@
     el("cap-flag").classList.remove("show");
     el("screen-run").classList.remove("phase-work","phase-rest");
 
-    // Hang and Plank are always full-width timers — no card display, even
+    // Plank is always a full-width timer — no card display, even
     // if a card happens to be selected for other workouts.
-    var noCard = (type === "hang" || type === "plank");
+    var noCard = (type === "plank");
     document.body.classList.toggle("force-full", noCard);
     el("btn-card-view").style.display = noCard ? "none" : "";
 
@@ -1584,18 +1676,25 @@
   document.addEventListener("keydown", function(e){
     var k = e.key || "";
     var c = e.keyCode || e.which || 0;
-    var typing = navCurrent && navCurrent.tagName === "INPUT";
+    // What's actually receiving keystrokes (the on-screen keyboard types
+    // into document.activeElement) — not just whatever the pointer last
+    // highlighted, which can drift out of sync while a field is open.
+    var activeEl = document.activeElement;
+    var typing = !!(activeEl && (activeEl.tagName === "INPUT" || activeEl.tagName === "TEXTAREA"));
+    var isBackspace = (k === "Backspace" || c === 8);
 
-    // Back: Escape, Backspace, Tizen (10009), webOS (461), generic browser back
-    if(k === "Escape" || k === "Backspace" || k === "BrowserBack" || k === "GoBack" ||
-       c === 27 || c === 10009 || c === 461 || (c === 8 && !typing)){
+    // Back: Escape, Tizen (10009), webOS (461), generic browser back,
+    // or Backspace — but only when we're not using it to delete a character.
+    if(k === "Escape" || k === "BrowserBack" || k === "GoBack" ||
+       c === 27 || c === 10009 || c === 461 || (isBackspace && !typing)){
       if(goBack()){ e.preventDefault(); }
       return;
     }
+    if(isBackspace && typing) return; // let the field handle its own delete
 
     // Enter / OK
     if(k === "Enter" || c === 13){
-      if(typing){ try{ navCurrent.blur(); }catch(err){} e.preventDefault(); return; }
+      if(typing){ try{ activeEl.blur(); }catch(err){} e.preventDefault(); return; }
       e.preventDefault();
       activateNav();
       return;
