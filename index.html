@@ -3,10 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no">
-<title>First Due Fitness</title>
+<title>Bell — Workout Timer</title>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
-<meta name="apple-mobile-web-app-title" content="BK-KB">
+<meta name="apple-mobile-web-app-title" content="Bell">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#000000">
 <link rel="apple-touch-icon" href="icons/icon-180.png">
@@ -434,6 +434,7 @@
   }
   .ctrl-btn:active{opacity:.7;}
   .ctrl-btn.bottom-exit{
+    flex:0 0 auto;
     width:100%;
     margin-top:12px;
     padding:.9em 1em;
@@ -475,16 +476,30 @@
     border-radius:var(--radius);
     background:#fff;
   }
-  /* Split side-by-side once there's room (TV / iPad landscape) */
+  /* Split side-by-side once there's room (TV / iPad landscape). The
+     threshold is deliberately above the widest iPhone landscape width
+     (~932px) — phones stay in stacked mode below, where the full-width
+     timer formula has room and can't spill into the card next to it. */
   body.split #app{max-width:1600px;}
-  @media (min-width:820px){
+  @media (min-width:1100px){
     body.split .run-body{flex-direction:row; gap:18px;}
     body.split .card-panel{display:flex; flex:1 1 46%;}
     body.split .timer-col{flex:1 1 54%;}
   }
-  /* Narrow screens: card stacks above, smaller, toggled on */
-  @media (max-width:819px){
+  /* Narrow/medium screens (phones, including landscape): card stacks
+     above, smaller, toggled on */
+  @media (max-width:1099px){
     body.split.card-open .card-panel{display:flex; flex:0 0 34%; margin-bottom:10px;}
+  }
+  /* Phone landscape specifically: short on height, so tighten vertical
+     spacing and cap the timer by height as well as width so everything
+     still fits above the fold alongside a stacked card. */
+  @media (max-width:1099px) and (max-height:500px){
+    body.split .time-display{font-size:clamp(2.2rem, min(20vw,20vh), 6rem);}
+    body.split .phase-label{font-size:clamp(.9rem, 4vh, 1.4rem); margin-bottom:.15em;}
+    body.split .round-label{font-size:clamp(.75rem, 3vh, .95rem); margin-bottom:.15em;}
+    body.split .progress-track{margin-top:.4em;}
+    body.split.card-open .card-panel{flex-basis:30%;}
   }
   body:not(.split) #btn-card-view{visibility:hidden;}
   /* Plank never shows a card, regardless of what's selected */
@@ -613,7 +628,7 @@
   <!-- ===================== SELECT SCREEN ===================== -->
   <section class="screen active" id="screen-select">
     <div class="topbar">
-      <div class="brand">First Due <span class="dot">Fitness</span></div>
+      <div class="brand">bell<span class="dot">.</span></div>
     </div>
     <div class="select-title">What are we running?</div>
 
@@ -1442,6 +1457,7 @@
       }catch(e){}
     }
     document.body.classList.toggle("split", !!selectedCard);
+    if(selectedCard) document.body.classList.add("card-open");
     el("card-select-label").textContent = selectedCard ? prettyName(selectedCard) : "Choose a card";
     var thumb = el("card-select-thumb");
     if(selectedCard){
