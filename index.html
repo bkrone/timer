@@ -541,6 +541,10 @@
   @media (min-width:640px){
     .card-grid{grid-template-columns:repeat(4,1fr);}
   }
+  @media (min-width:1000px){
+    .card-grid{grid-template-columns:repeat(6,1fr); gap:12px;}
+    .card-choice{padding:7px; gap:5px;}
+  }
   .card-choice{
     border:1px solid var(--line);
     border-radius:var(--radius);
@@ -628,7 +632,7 @@
   <!-- ===================== SELECT SCREEN ===================== -->
   <section class="screen active" id="screen-select">
     <div class="topbar">
-      <div class="brand">firest due<span class="dot"> fitness</span></div>
+      <div class="brand">first due<span class="dot">fitness</span></div>
     </div>
     <div class="select-title">What are we running?</div>
 
@@ -1517,6 +1521,7 @@
       im.src = cardUrl(name);
       im.alt = prettyName(name);
       im.loading = "lazy";
+      im.decoding = "async";
       var label = document.createElement("div");
       label.className = "cname";
       label.textContent = prettyName(name);
@@ -1634,6 +1639,13 @@
     });
   }
 
+  function isFullyVisible(node){
+    var r = node.getBoundingClientRect();
+    var vh = window.innerHeight || document.documentElement.clientHeight;
+    var vw = window.innerWidth || document.documentElement.clientWidth;
+    return r.top >= 0 && r.left >= 0 && r.bottom <= vh && r.right <= vw;
+  }
+
   function paintNav(node){
     var prev = document.querySelectorAll(".nav-focus");
     for(var i=0;i<prev.length;i++) prev[i].classList.remove("nav-focus");
@@ -1642,7 +1654,12 @@
     navCurrent = node;
     try{ node.focus({ preventScroll:true }); }
     catch(e){ try{ node.focus(); }catch(e2){} }
-    try{ node.scrollIntoView({ block:"nearest", inline:"nearest" }); }catch(e3){}
+    // Only force a scroll when the target is actually off-screen — forcing
+    // it every time fights a manual scroll gesture, which is why scrolling
+    // back up felt like it kept getting pulled back down.
+    if(!isFullyVisible(node)){
+      try{ node.scrollIntoView({ block:"nearest", inline:"nearest" }); }catch(e3){}
+    }
   }
 
   function centerOf(n){
@@ -1747,7 +1764,17 @@
     }
     return bestDist <= MAGNET_RADIUS ? best : null;
   }
+  // nearestNavTo() measures every candidate button's position — on a
+  // screen full of card thumbnails that's real work, and running it on
+  // every raw mousemove event (which can fire dozens of times a second)
+  // is what made the TV feel laggy. Throttling this is enough to keep it
+  // smooth without making the magnet feel less responsive.
+  var lastMagnetRun = 0;
+  var MAGNET_THROTTLE_MS = 80;
   document.addEventListener("mousemove", function(e){
+    var now = Date.now();
+    if(now - lastMagnetRun < MAGNET_THROTTLE_MS) return;
+    lastMagnetRun = now;
     var hit = nearestNavTo(e.clientX, e.clientY);
     if(hit && hit !== navCurrent){
       paintNav(hit);
