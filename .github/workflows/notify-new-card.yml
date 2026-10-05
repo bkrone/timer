@@ -1,0 +1,45 @@
+name: Notify new workout card
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "cards/**"
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Figure out which cards changed
+        id: cards
+        run: |
+          BEFORE="${{ github.event.before }}"
+          if [ -z "$BEFORE" ] || [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; then
+            FILES=$(git show --name-only --diff-filter=AM --pretty="" HEAD -- 'cards/*.png' 'cards/*.jpg' 'cards/*.jpeg' 'cards/*.webp' 'cards/*.gif' 'cards/*.avif' || true)
+          else
+            FILES=$(git diff --name-only --diff-filter=AM "$BEFORE" "${{ github.sha }}" -- 'cards/*.png' 'cards/*.jpg' 'cards/*.jpeg' 'cards/*.webp' 'cards/*.gif' 'cards/*.avif' || true)
+          fi
+
+          if [ -z "$FILES" ]; then
+            echo "names=New workout cards" >> "$GITHUB_OUTPUT"
+          else
+            NAMES=$(echo "$FILES" \
+              | xargs -n1 basename \
+              | sed -E 's/\.[^.]+$//' \
+              | sed -E 's/[-_]+/ /g' \
+              | sed -E 's/(^|[[:space:]])([a-z])/\1\U\2/g' \
+              | paste -sd ', ' -)
+            echo "names=$NAMES" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Send OneSignal push notification
+        run: |
+          curl -s -X POST "https://api.onesignal.com/notifications" \
+            -H "Authorization: Key ${{ secrets.ONESIGNAL_REST_API_KEY }}" \
+            -H "Content-Type: application/json" \
+            -d "{\"app_id\":\"496e1f04-bb14-4bc5-9889-9a421c0c2905\",\"included_segments\":[\"Subscribed Users\"],\"headings\":{\"en\":\"New workout card added\"},\"contents\":{\"en\":\"${{ steps.cards.outputs.names }}\"}}"
