@@ -12,6 +12,14 @@
 <link rel="apple-touch-icon" href="icons/icon-180.png">
 <link rel="icon" type="image/png" sizes="32x32" href="icons/icon-32.png">
 <link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png">
+<link rel="manifest" href="manifest.json">
+<script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
+<script>
+  window.OneSignalDeferred = window.OneSignalDeferred || [];
+  OneSignalDeferred.push(function(OneSignal){
+    OneSignal.init({ appId: "496e1f04-bb14-4bc5-9889-9a421c0c2905" });
+  });
+</script>
 <style>
   :root{
     --bg:#000000;
@@ -632,7 +640,7 @@
   <!-- ===================== SELECT SCREEN ===================== -->
   <section class="screen active" id="screen-select">
     <div class="topbar">
-      <div class="brand">first due <span class="dot">fitness</span></div>
+      <div class="brand">first due<span class="dot">fitness</span></div>
     </div>
     <div class="select-title">What are we running?</div>
 
@@ -647,6 +655,7 @@
 
     <div class="select-sub">Pick a timer type to configure it.</div>
     <div class="type-grid" id="type-grid"></div>
+    <button class="navbtn" id="btn-enable-push" style="margin:14px auto 4px; display:none;">Enable new-card alerts</button>
   </section>
 
   <!-- ===================== CARD PICKER SCREEN ===================== -->
@@ -1831,6 +1840,29 @@
   });
 
   focusFirst("screen-select");
+
+  /* ===================== PUSH NOTIFICATIONS (new card alerts) ===================== */
+  (function(){
+    var btn = el("btn-enable-push");
+    if(!btn || !window.OneSignalDeferred) return;
+
+    function refreshButton(OneSignal){
+      try{
+        var granted = OneSignal.Notifications.permission === true;
+        btn.style.display = granted ? "none" : "";
+      }catch(e){ btn.style.display = ""; }
+    }
+
+    window.OneSignalDeferred.push(function(OneSignal){
+      refreshButton(OneSignal);
+      try{
+        OneSignal.Notifications.addEventListener("permissionChange", function(){ refreshButton(OneSignal); });
+      }catch(e){}
+      btn.addEventListener("click", function(){
+        try{ OneSignal.Notifications.requestPermission(); }catch(e){}
+      });
+    });
+  })();
 
 })();
 </script>
