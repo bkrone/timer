@@ -39,7 +39,31 @@ jobs:
 
       - name: Send OneSignal push notification
         run: |
-          curl -s -X POST "https://api.onesignal.com/notifications" \
+          RESPONSE=$(curl -s -w "\nHTTP_STATUS:%{http_code}" -X POST "https://api.onesignal.com/notifications" \
             -H "Authorization: Key ${{ secrets.ONESIGNAL_REST_API_KEY }}" \
             -H "Content-Type: application/json" \
-            -d "{\"app_id\":\"496e1f04-bb14-4bc5-9889-9a421c0c2905\",\"included_segments\":[\"Subscribed Users\"],\"headings\":{\"en\":\"New workout card added\"},\"contents\":{\"en\":\"${{ steps.cards.outputs.names }}\"}}"
+            -d "{\"app_id\":\"496e1f04-bb14-4bc5-9889-9a421c0c2905\",\"included_segments\":[\"Subscribed Users\"],\"headings\":{\"en\":\"New workout card added\"},\"contents\":{\"en\":\"${{ steps.cards.outputs.names }}\"}}")
+
+          STATUS=$(echo "$RESPONSE" | grep -o 'HTTP_STATUS:[0-9]*' | cut -d: -f2)
+          BODY=$(echo "$RESPONSE" | sed '/HTTP_STATUS:/d')
+
+          echo "OneSignal HTTP status: $STATUS"
+          echo "OneSignal response body: $BODY"
+
+          # Surface the real outcome instead of a meaningless green checkmark:
+          # fail the job if the HTTP call itself failed, if OneSignal reported
+          # errors, or if it accepted the request but found nobody to send to.
+          if [ "$STATUS" -ge 300 ]; then
+            echo "::error::OneSignal returned HTTP $STATUS — see response body above."
+            exit 1
+          fi
+          if echo "$BODY" | grep -q '"errors"'; then
+            echo "::error::OneSignal reported errors — see response body above."
+            exit 1
+          fi
+          RECIPIENTS=$(echo "$BODY" | grep -o '"recipients":[0-9]*' | cut -d: -f2)
+          if [ -z "$RECIPIENTS" ] || [ "$RECIPIENTS" = "0" ]; then
+            echo "::error::OneSignal accepted the request but found 0 recipients — check Audience > Subscriptions in the OneSignal dashboard."
+            exit 1
+          fi
+          echo "Sent to $RECIPIENTS recipient(s)."
