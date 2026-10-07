@@ -69,9 +69,12 @@ jobs:
             echo "::error::OneSignal reported errors — see response body above."
             exit 1
           fi
-          RECIPIENTS=$(echo "$BODY" | grep -o '"recipients":[0-9]*' | cut -d: -f2)
-          if [ -z "$RECIPIENTS" ] || [ "$RECIPIENTS" = "0" ]; then
-            echo "::error::OneSignal accepted the request but found 0 recipients — check Audience > Subscriptions in the OneSignal dashboard."
+          # Per OneSignal's own docs: "If the message id is set, then a
+          # message was sent." The recipients field is optional and often
+          # just isn't included — it is NOT a reliable signal of failure.
+          MSG_ID=$(echo "$BODY" | grep -o '"id":"[^"]*"' | head -1 | cut -d'"' -f4)
+          if [ -z "$MSG_ID" ]; then
+            echo "::error::OneSignal did not return a message id — see response body above."
             exit 1
           fi
-          echo "Sent to $RECIPIENTS recipient(s)."
+          echo "Notification sent — id $MSG_ID"
