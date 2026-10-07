@@ -644,7 +644,7 @@
   <!-- ===================== SELECT SCREEN ===================== -->
   <section class="screen active" id="screen-select">
     <div class="topbar">
-      <div class="brand">first due <span class="dot">fitness</span></div>
+      <div class="brand">first due<span class="dot">fitness</span></div>
     </div>
     <div class="select-title">What are we running?</div>
 
@@ -1848,23 +1848,40 @@
   /* ===================== PUSH NOTIFICATIONS (new card alerts) ===================== */
   (function(){
     var btn = el("btn-enable-push");
-    if(!btn || !window.OneSignalDeferred) return;
+    if(!btn) return;
 
-    function refreshButton(OneSignal){
+    // Check the browser's own permission state directly — this is the
+    // ground truth. OneSignal's wrapper around it can lag or desync after
+    // removing/re-adding the home screen app, which was leaving the button
+    // visible (and inert, since the OS has already answered) even after
+    // permission was actually granted.
+    function refreshButton(){
       try{
-        var granted = OneSignal.Notifications.permission === true;
+        var granted = window.Notification && Notification.permission === "granted";
         btn.style.display = granted ? "none" : "";
       }catch(e){ btn.style.display = ""; }
     }
 
-    window.OneSignalDeferred.push(function(OneSignal){
-      refreshButton(OneSignal);
-      try{
-        OneSignal.Notifications.addEventListener("permissionChange", function(){ refreshButton(OneSignal); });
-      }catch(e){}
-      btn.addEventListener("click", function(){
-        try{ OneSignal.Notifications.requestPermission(); }catch(e){}
-      });
+    refreshButton();
+    document.addEventListener("visibilitychange", function(){
+      if(document.visibilityState === "visible") refreshButton();
+    });
+
+    btn.addEventListener("click", function(){
+      if(window.Notification && Notification.permission === "granted"){
+        refreshButton();
+        return;
+      }
+      if(window.OneSignalDeferred){
+        window.OneSignalDeferred.push(function(OneSignal){
+          try{
+            OneSignal.Notifications.addEventListener("permissionChange", refreshButton);
+          }catch(e){}
+          try{ OneSignal.Notifications.requestPermission(); }
+          catch(e){}
+          setTimeout(refreshButton, 500);
+        });
+      }
     });
   })();
 
