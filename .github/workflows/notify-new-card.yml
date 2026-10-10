@@ -50,7 +50,7 @@ jobs:
           RESPONSE=$(curl -s -w "\nHTTP_STATUS:%{http_code}" -X POST "https://api.onesignal.com/notifications" \
             -H "Authorization: Key ${{ secrets.ONESIGNAL_REST_API_KEY }}" \
             -H "Content-Type: application/json" \
-            -d "{\"app_id\":\"496e1f04-bb14-4bc5-9889-9a421c0c2905\",\"included_segments\":[\"All Push\"],\"target_channel\":\"push\",\"headings\":{\"en\":\"New workout card added. Tap refresh on card selector screen.\"},\"contents\":{\"en\":\"${{ steps.cards.outputs.names }}\"}}")
+            -d "{\"app_id\":\"496e1f04-bb14-4bc5-9889-9a421c0c2905\",\"included_segments\":[\"All Push\"],\"target_channel\":\"push\",\"headings\":{\"en\":\"New workout card added\"},\"contents\":{\"en\":\"${{ steps.cards.outputs.names }}\"}}")
 
           STATUS=$(echo "$RESPONSE" | grep -o 'HTTP_STATUS:[0-9]*' | cut -d: -f2)
           BODY=$(echo "$RESPONSE" | sed '/HTTP_STATUS:/d')
