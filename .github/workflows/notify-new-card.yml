@@ -45,7 +45,7 @@ jobs:
           # "Subscribed Users" segment, which has a known sync-lag bug that
           # can report real subscribers as unsubscribed at send time.
           SUBSCRIPTION_IDS: >-
-            ["37f61b3f-dbe4-4e93-a756-672df4d544b0","b9b5a3dd-ba80-4b1f-bfc4-ade66c4d138d"]
+            ["37f61b3f-dbe4-4e93-a756-672df4d544b0","b9b5a3dd-ba80-4b1f-bfc4-ade66c4d138d","d3892ee5-cd76-4ce7-bcff-da7e89a5c673"]
         run: |
           RESPONSE=$(curl -s -w "\nHTTP_STATUS:%{http_code}" -X POST "https://api.onesignal.com/notifications" \
             -H "Authorization: Key ${{ secrets.ONESIGNAL_REST_API_KEY }}" \
