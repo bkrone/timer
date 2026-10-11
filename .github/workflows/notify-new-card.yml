@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - "cards/**"
+      - "!cards/thumbs/**"   # thumbnails are generated automatically; never announce them
 
 jobs:
   notify:
@@ -20,53 +21,109 @@ jobs:
         run: |
           BEFORE="${{ github.event.before }}"
           if [ -z "$BEFORE" ] || [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; then
-            FILES=$(git show --name-only --diff-filter=AM --pretty="" HEAD -- 'cards/*.png' 'cards/*.jpg' 'cards/*.jpeg' 'cards/*.webp' 'cards/*.gif' 'cards/*.avif' || true)
+            FILES=$(git -c core.quotepath=false show --name-only --diff-filter=AM --pretty="" HEAD -- 'cards/*.png' 'cards/*.jpg' 'cards/*.jpeg' 'cards/*.webp' 'cards/*.gif' 'cards/*.avif' ':(exclude)cards/thumbs' || true)
           else
-            FILES=$(git diff --name-only --diff-filter=AM "$BEFORE" "${{ github.sha }}" -- 'cards/*.png' 'cards/*.jpg' 'cards/*.jpeg' 'cards/*.webp' 'cards/*.gif' 'cards/*.avif' || true)
+            FILES=$(git -c core.quotepath=false diff --name-only --diff-filter=AM "$BEFORE" "${{ github.sha }}" -- 'cards/*.png' 'cards/*.jpg' 'cards/*.jpeg' 'cards/*.webp' 'cards/*.gif' 'cards/*.avif' ':(exclude)cards/thumbs' || true)
           fi
+
+          # The first new card's filename, used to deep-link the notification.
+          FIRST=""
+          if [ -n "$FILES" ]; then
+            FIRST=$(basename "$(echo "$FILES" | head -n1)")
+          fi
+          echo "first=$FIRST" >> "$GITHUB_OUTPUT"
 
           if [ -z "$FILES" ]; then
             echo "names=New workout cards" >> "$GITHUB_OUTPUT"
           else
             NAMES=$(echo "$FILES" \
-              | xargs -n1 basename \
+              | sed -E 's#.*/##' \
               | sed -E 's/\.[^.]+$//' \
-              | sed -E 's/[-_]+/ /g' \
+              | sed -E "s/([A-Za-z])_s(_|\$)/\1\xe2\x80\x99s\2/g" \
+              | sed -E '/_/{s/_+/ /g;b};s/-+/ /g' \
               | sed -E 's/(^|[[:space:]])([a-z])/\1\U\2/g' \
-              | paste -sd ', ' -)
+              | paste -sd ',' - | sed 's/,/, /g')
             echo "names=$NAMES" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Send OneSignal push notification
+        env:
+          # The exact name of the OneSignal segment that should receive the
+          # alert (Audience > Segments). Change this if yours is named
+          # differently.
+          SEGMENT: "All Push"
+          # Optional: set a repository variable named APP_URL (Settings >
+          # Secrets and variables > Actions > Variables) if the app is NOT at
+          # https://<owner>.github.io/<repo>/ and the link needs overriding.
+          APP_URL: ${{ vars.APP_URL }}
+          CARD_NAMES: ${{ steps.cards.outputs.names }}
+          CARD_FILE: ${{ steps.cards.outputs.first }}
+          OWNER: ${{ github.repository_owner }}
+          REPO: ${{ github.event.repository.name }}
+          ONESIGNAL_REST_API_KEY: ${{ secrets.ONESIGNAL_REST_API_KEY }}
         run: |
+          # Where the app lives, e.g. https://owner.github.io/timer/
+          OWNER_LC=$(echo "$OWNER" | tr '[:upper:]' '[:lower:]')
+          REPO_LC=$(echo "$REPO" | tr '[:upper:]' '[:lower:]')
+          if [ "$REPO_LC" = "${OWNER_LC}.github.io" ]; then
+            BASE="https://${OWNER_LC}.github.io/"
+          else
+            BASE="https://${OWNER_LC}.github.io/${REPO}/"
+          fi
+          BASE="${APP_URL:-$BASE}"
+
+          # Tapping the notification opens the app straight on the new card.
+          URL="$BASE"
+          if [ -n "$CARD_FILE" ]; then
+            ENC=$(jq -rn --arg v "$CARD_FILE" '$v|@uri')
+            URL="${BASE}?card=${ENC}"
+          fi
+          echo "Notification will open: $URL"
+
+          PAYLOAD=$(jq -n \
+            --arg app_id "496e1f04-bb14-4bc5-9889-9a421c0c2905" \
+            --arg segment "$SEGMENT" \
+            --arg heading "New workout card added" \
+            --arg body "${CARD_NAMES}. Tap to view." \
+            --arg url "$URL" \
+            --arg card "$CARD_FILE" \
+            '{
+              app_id: $app_id,
+              included_segments: [$segment],
+              target_channel: "push",
+              headings: { en: $heading },
+              contents: { en: $body },
+              url: $url
+            } + (if $card == "" then {} else { data: { card: $card } } end)')
+
           RESPONSE=$(curl -s -w "\nHTTP_STATUS:%{http_code}" -X POST "https://api.onesignal.com/notifications" \
-            -H "Authorization: Key ${{ secrets.ONESIGNAL_REST_API_KEY }}" \
+            -H "Authorization: Key ${ONESIGNAL_REST_API_KEY}" \
             -H "Content-Type: application/json" \
-            -d "{\"app_id\":\"496e1f04-bb14-4bc5-9889-9a421c0c2905\",\"included_segments\":[\"All Push\"],\"target_channel\":\"push\",\"headings\":{\"en\":\"New workout card added\"},\"contents\":{\"en\":\"${{ steps.cards.outputs.names }} — tap Refresh on the card picker screen to see it.\"},\"url\":\"https://bkrone.github.io/timer/\"}")
+            -d "$PAYLOAD")
 
           STATUS=$(echo "$RESPONSE" | grep -o 'HTTP_STATUS:[0-9]*' | cut -d: -f2)
-          BODY=$(echo "$RESPONSE" | sed '/HTTP_STATUS:/d')
+          RESP_BODY=$(echo "$RESPONSE" | sed '/HTTP_STATUS:/d')
 
           echo "OneSignal HTTP status: $STATUS"
-          echo "OneSignal response body: $BODY"
+          echo "OneSignal response body: $RESP_BODY"
 
           # Surface the real outcome instead of a meaningless green checkmark:
           # fail the job if the HTTP call itself failed, if OneSignal reported
           # errors, or if it accepted the request but found nobody to send to.
           if [ "$STATUS" -ge 300 ]; then
-            echo "::error::OneSignal returned HTTP $STATUS — see response body above."
+            echo "::error::OneSignal returned HTTP $STATUS - see response body above."
             exit 1
           fi
-          if echo "$BODY" | grep -q '"errors"'; then
-            echo "::error::OneSignal reported errors — see response body above."
+          if echo "$RESP_BODY" | grep -q '"errors"'; then
+            echo "::error::OneSignal reported errors - see response body above."
             exit 1
           fi
           # Per OneSignal's own docs: "If the message id is set, then a
           # message was sent." The recipients field is optional and often
-          # just isn't included — it is NOT a reliable signal of failure.
-          MSG_ID=$(echo "$BODY" | grep -o '"id":"[^"]*"' | head -1 | cut -d'"' -f4)
+          # just isn't included - it is NOT a reliable signal of failure.
+          MSG_ID=$(echo "$RESP_BODY" | grep -o '"id":"[^"]*"' | head -1 | cut -d'"' -f4)
           if [ -z "$MSG_ID" ]; then
-            echo "::error::OneSignal did not return a message id — see response body above."
+            echo "::error::OneSignal did not return a message id - see response body above."
             exit 1
           fi
-          echo "Notification sent — id $MSG_ID"
+          echo "Notification sent - id $MSG_ID"
