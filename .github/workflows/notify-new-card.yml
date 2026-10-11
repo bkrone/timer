@@ -21,32 +21,35 @@ jobs:
         run: |
           BEFORE="${{ github.event.before }}"
           if [ -z "$BEFORE" ] || [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; then
-            FILES=$(git -c core.quotepath=false show --name-only --diff-filter=AM --pretty="" HEAD -- 'cards/*.png' 'cards/*.jpg' 'cards/*.jpeg' 'cards/*.webp' 'cards/*.gif' 'cards/*.avif' ':(exclude)cards/thumbs' || true)
+            FILES=$(git -c core.quotepath=false show --name-only --diff-filter=A --pretty="" HEAD -- 'cards/*.png' 'cards/*.jpg' 'cards/*.jpeg' 'cards/*.webp' 'cards/*.gif' 'cards/*.avif' ':(exclude)cards/thumbs' || true)
           else
-            FILES=$(git -c core.quotepath=false diff --name-only --diff-filter=AM "$BEFORE" "${{ github.sha }}" -- 'cards/*.png' 'cards/*.jpg' 'cards/*.jpeg' 'cards/*.webp' 'cards/*.gif' 'cards/*.avif' ':(exclude)cards/thumbs' || true)
+            FILES=$(git -c core.quotepath=false diff --name-only --diff-filter=A "$BEFORE" "${{ github.sha }}" -- 'cards/*.png' 'cards/*.jpg' 'cards/*.jpeg' 'cards/*.webp' 'cards/*.gif' 'cards/*.avif' ':(exclude)cards/thumbs' || true)
           fi
+
+          # Only a brand-new card earns a notification. A push that just deletes,
+          # renames or edits cards (FILES is empty) is skipped.
+          if [ -z "$FILES" ]; then
+            echo "No cards were added in this push - skipping the notification."
+            echo "any=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "any=true" >> "$GITHUB_OUTPUT"
 
           # The first new card's filename, used to deep-link the notification.
-          FIRST=""
-          if [ -n "$FILES" ]; then
-            FIRST=$(basename "$(echo "$FILES" | head -n1)")
-          fi
+          FIRST=$(basename "$(echo "$FILES" | head -n1)")
           echo "first=$FIRST" >> "$GITHUB_OUTPUT"
 
-          if [ -z "$FILES" ]; then
-            echo "names=New workout cards" >> "$GITHUB_OUTPUT"
-          else
-            NAMES=$(echo "$FILES" \
-              | sed -E 's#.*/##' \
-              | sed -E 's/\.[^.]+$//' \
-              | sed -E "s/([A-Za-z])_s(_|\$)/\1\xe2\x80\x99s\2/g" \
-              | sed -E '/_/{s/_+/ /g;b};s/-+/ /g' \
-              | sed -E 's/(^|[[:space:]])([a-z])/\1\U\2/g' \
-              | paste -sd ',' - | sed 's/,/, /g')
-            echo "names=$NAMES" >> "$GITHUB_OUTPUT"
-          fi
+          NAMES=$(echo "$FILES" \
+            | sed -E 's#.*/##' \
+            | sed -E 's/\.[^.]+$//' \
+            | sed -E "s/([A-Za-z])_s(_|\$)/\1\xe2\x80\x99s\2/g" \
+            | sed -E '/_/{s/_+/ /g;b};s/-+/ /g' \
+            | sed -E 's/(^|[[:space:]])([a-z])/\1\U\2/g' \
+            | paste -sd ',' - | sed 's/,/, /g')
+          echo "names=$NAMES" >> "$GITHUB_OUTPUT"
 
       - name: Send OneSignal push notification
+        if: steps.cards.outputs.any == 'true'
         env:
           # The exact name of the OneSignal segment that should receive the
           # alert (Audience > Segments). Change this if yours is named
