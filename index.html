@@ -51,6 +51,11 @@
     height:100dvh;
     user-select:none;
     -webkit-user-select:none;
+    /* Belt-and-suspenders centering: some TV browsers don't reliably
+       center a block element via margin:auto alone, so body itself
+       centers #app as a flex container too. */
+    display:flex;
+    justify-content:center;
   }
   button{
     font-family:inherit;
@@ -105,11 +110,21 @@
 
   #app{
     height:100%;
+    width:100%;
     display:flex;
     flex-direction:column;
     max-width:900px;
     margin:0 auto;
     padding:env(safe-area-inset-top,0) env(safe-area-inset-right,0) env(safe-area-inset-bottom,0) env(safe-area-inset-left,0);
+  }
+  /* On genuinely large displays (TVs), let the app breathe wider than the
+     phone-tuned 900px cap even outside the card-split run screen — this is
+     what was leaving a large unused strip on the right on TV before. */
+  @media (min-width:1400px){
+    #app{max-width:1500px;}
+  }
+  @media (min-width:1900px){
+    #app{max-width:1800px;}
   }
   .screen{
     display:none;
@@ -493,6 +508,12 @@
      (~932px) — phones stay in stacked mode below, where the full-width
      timer formula has room and can't spill into the card next to it. */
   body.split #app{max-width:1600px;}
+  @media (min-width:1400px){
+    body.split #app{max-width:1700px;}
+  }
+  @media (min-width:1900px){
+    body.split #app{max-width:2000px;}
+  }
   @media (min-width:1100px){
     body.split .run-body{flex-direction:row; gap:18px;}
     body.split .card-panel{display:flex; flex:1 1 46%;}
@@ -556,6 +577,14 @@
   @media (min-width:1000px){
     .card-grid{grid-template-columns:repeat(6,1fr); gap:12px;}
     .card-choice{padding:7px; gap:5px;}
+  }
+  @media (min-width:1400px){
+    .card-grid{grid-template-columns:repeat(8,1fr); gap:10px;}
+    .card-choice{padding:6px; gap:4px;}
+    .card-choice .cname{font-size:.72rem;}
+  }
+  @media (min-width:1900px){
+    .card-grid{grid-template-columns:repeat(10,1fr);}
   }
   .card-choice{
     border:1px solid var(--line);
@@ -639,12 +668,13 @@
 </style>
 </head>
 <body>
+<video id="nosleep-video" muted loop playsinline webkit-playsinline="true" style="position:fixed;width:1px;height:1px;opacity:0;pointer-events:none;left:-9999px;" src="data:video/mp4;base64,AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAMRbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAAAAAD6AAAA+gAAQAAAQAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAjt0cmFrAAAAXHRraGQAAAADAAAAAAAAAAAAAAABAAAAAAAAA+gAAAAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAABAAAAAAAIAAAACAAAAAAAkZWR0cwAAABxlbHN0AAAAAAAAAAEAAAPoAAAAAAABAAAAAAGzbWRpYQAAACBtZGhkAAAAAAAAAAAAAAAAAABAAAAAQABVxAAAAAAALWhkbHIAAAAAAAAAAHZpZGUAAAAAAAAAAAAAAABWaWRlb0hhbmRsZXIAAAABXm1pbmYAAAAUdm1oZAAAAAEAAAAAAAAAAAAAACRkaW5mAAAAHGRyZWYAAAAAAAAAAQAAAAx1cmwgAAAAAQAAAR5zdGJsAAAAunN0c2QAAAAAAAAAAQAAAKphdmMxAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAAAAAIAAgBIAAAASAAAAAAAAAABFUxhdmM2MC4zMS4xMDIgbGlieDI2NAAAAAAAAAAAAAAAGP//AAAAMGF2Y0MBQsAe/+EAGGdCwB7ZH4iIwEQAAAMABAAAAwAIPFi5IAEABWjLg8sgAAAAEHBhc3AAAAABAAAAAQAAABRidHJ0AAAAAAAAFDAAABQwAAAAGHN0dHMAAAAAAAAAAQAAAAEAAEAAAAAAHHN0c2MAAAAAAAAAAQAAAAEAAAABAAAAAQAAABRzdHN6AAAAAAAAAoYAAAABAAAAFHN0Y28AAAAAAAAAAQAAA0EAAABidWR0YQAAAFptZXRhAAAAAAAAACFoZGxyAAAAAAAAAABtZGlyYXBwbAAAAAAAAAAAAAAAAC1pbHN0AAAAJal0b28AAAAdZGF0YQAAAAEAAAAATGF2ZjYwLjE2LjEwMAAAAAhmcmVlAAACjm1kYXQAAAJwBgX//2zcRem95tlIt5Ys2CDZI+7veDI2NCAtIGNvcmUgMTY0IHIzMTA4IDMxZTE5ZjkgLSBILjI2NC9NUEVHLTQgQVZDIGNvZGVjIC0gQ29weWxlZnQgMjAwMy0yMDIzIC0gaHR0cDovL3d3dy52aWRlb2xhbi5vcmcveDI2NC5odG1sIC0gb3B0aW9uczogY2FiYWM9MCByZWY9MyBkZWJsb2NrPTE6MDowIGFuYWx5c2U9MHgxOjB4MTExIG1lPWhleCBzdWJtZT03IHBzeT0xIHBzeV9yZD0xLjAwOjAuMDAgbWl4ZWRfcmVmPTEgbWVfcmFuZ2U9MTYgY2hyb21hX21lPTEgdHJlbGxpcz0xIDh4OGRjdD0wIGNxbT0wIGRlYWR6b25lPTIxLDExIGZhc3RfcHNraXA9MSBjaHJvbWFfcXBfb2Zmc2V0PS0yIHRocmVhZHM9MSBsb29rYWhlYWRfdGhyZWFkcz0xIHNsaWNlZF90aHJlYWRzPTAgbnI9MCBkZWNpbWF0ZT0xIGludGVybGFjZWQ9MCBibHVyYXlfY29tcGF0PTAgY29uc3RyYWluZWRfaW50cmE9MCBiZnJhbWVzPTAgd2VpZ2h0cD0wIGtleWludD0yNTAga2V5aW50X21pbj0xIHNjZW5lY3V0PTQwIGludHJhX3JlZnJlc2g9MCByY19sb29rYWhlYWQ9NDAgcmM9Y3JmIG1idHJlZT0xIGNyZj0yMy4wIHFjb21wPTAuNjAgcXBtaW49MCBxcG1heD02OSBxcHN0ZXA9NCBpcF9yYXRpbz0xLjQwIGFxPTE6MS4wMACAAAAADmWIhAV///8PRQABQt+A"></video>
 <div id="app">
 
   <!-- ===================== SELECT SCREEN ===================== -->
   <section class="screen active" id="screen-select">
     <div class="topbar">
-      <div class="brand">first due <span class="dot">fitness</span></div>
+      <div class="brand">first due<span class="dot">fitness</span></div>
     </div>
     <div class="select-title">What are we running?</div>
 
@@ -826,13 +856,26 @@
 
   /* ===================== WAKE LOCK ===================== */
   var wakeLock = null;
+
+  // Fallback for browsers without the Wake Lock API (notably iOS before
+  // 16.4 — exactly the iPad mini's problem). A muted, invisible, looping
+  // video (embedded in the page as #nosleep-video) is the standard trick:
+  // most mobile browsers treat "playing video" as a reason not to sleep,
+  // even when they don't support the real Wake Lock API.
+  function wakeVideo(){ return document.getElementById("nosleep-video"); }
+
   function requestWake(){
     if("wakeLock" in navigator){
       navigator.wakeLock.request("screen").then(function(wl){ wakeLock = wl; }).catch(function(){});
+    } else {
+      var v = wakeVideo();
+      if(v){ try{ var p = v.play(); if(p && p.catch) p.catch(function(){}); }catch(e){} }
     }
   }
   function releaseWake(){
     if(wakeLock){ wakeLock.release().catch(function(){}); wakeLock = null; }
+    var v = wakeVideo();
+    if(v){ try{ v.pause(); }catch(e){} }
   }
   document.addEventListener("visibilitychange", function(){
     if(document.visibilityState === "visible" && running) requestWake();
@@ -1597,6 +1640,23 @@
     discoverCards(false, function(){});
   })();
 
+  // Deep link from the "new card added" push notification: ?card=filename
+  // jumps straight to that card instead of the normal select screen.
+  (function(){
+    try{
+      var params = new URLSearchParams(location.search);
+      var linkedCard = params.get("card");
+      if(linkedCard){
+        setSelectedCard(linkedCard);
+        openCardOnly();
+        // Clean the URL so refreshing/sharing doesn't keep re-triggering this.
+        if(window.history && history.replaceState){
+          history.replaceState(null, "", location.pathname);
+        }
+      }
+    }catch(e){}
+  })();
+
   /* ===================== TV REMOTE NAVIGATION ===================== */
   // Samsung/Tizen and several other TV browsers have unreliable built-in
   // spatial navigation and often suppress CSS focus outlines. So we run our
@@ -1633,6 +1693,42 @@
     line.textContent = msg;
     dbgEl.insertBefore(line, dbgEl.firstChild);
     while(dbgEl.childNodes.length > 20) dbgEl.removeChild(dbgEl.lastChild);
+  }
+
+  // Pinned (non-scrolling) panel showing the device's *actual current*
+  // OneSignal subscription — the dashboard's Audience list can show stale
+  // entries from earlier remove/re-add cycles, so this reads it straight
+  // from the live SDK instead. Text is selectable so it can be copied
+  // directly off the phone, overriding the app-wide user-select:none.
+  if(DEBUG){
+    var pushDbg = document.createElement("div");
+    pushDbg.style.cssText = "position:fixed;top:0;left:0;right:0;z-index:99999;"+
+      "background:rgba(0,0,0,.92);color:#0f0;font:13px/1.45 monospace;"+
+      "padding:8px 10px;white-space:pre-wrap;border-bottom:2px solid #0f0;"+
+      "-webkit-user-select:text;user-select:text;";
+    pushDbg.textContent = "push: loading\u2026";
+    document.body.appendChild(pushDbg);
+
+    function updatePushDebug(){
+      var perm = (window.Notification && Notification.permission) || "unknown";
+      var text = "Notification.permission: " + perm;
+      if(window.OneSignalDeferred){
+        window.OneSignalDeferred.push(function(OneSignal){
+          try{
+            var sub = OneSignal.User.PushSubscription;
+            text += "\nSubscription id: " + (sub.id || "(none yet)");
+            text += "\noptedIn: " + sub.optedIn;
+          }catch(e){
+            text += "\n(OneSignal read error: " + e + ")";
+          }
+          pushDbg.textContent = text;
+        });
+      } else {
+        pushDbg.textContent = text + "\nOneSignalDeferred not found";
+      }
+    }
+    updatePushDebug();
+    setInterval(updatePushDebug, 3000);
   }
 
   function activeScreen(){ return document.querySelector(".screen.active"); }
