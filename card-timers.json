@@ -1,0 +1,23 @@
+{
+  "_readme": "Suggested timer for each workout card. The key is the card's file name in lowercase with dashes (Hell_s_Bells.jpg -> hell-s-bells). type is one of: fortime (optional capMin), amrap (minutes), emom (totalMin, intervalMin), interval (work, rest, rounds). Cards with no entry still work, they just don't get a suggested timer.",
+
+  "full-body-forge": { "type": "fortime" },
+  "instant-regret": { "type": "fortime" },
+  "millennium-chipper": { "type": "fortime" },
+  "sit-ups-and-shut-ups": { "type": "fortime" },
+  "doom-ladder": { "type": "fortime" },
+  "goblet-gauntlet": { "type": "fortime" },
+  "murph": { "type": "fortime" },
+  "quadpocalypse": { "type": "fortime" },
+  "arm-destroyer": { "type": "fortime" },
+  "armageddon": { "type": "fortime" },
+  "afterburner": { "type": "fortime" },
+  "tree-fiddy": { "type": "fortime" },
+  "limb-reaper": { "type": "fortime" },
+  "upper-body-assault": { "type": "fortime" },
+
+  "the-smoke-show": { "type": "interval", "work": 20, "rest": 10, "rounds": 30 },
+  "hell-s-bells": { "type": "interval", "work": 20, "rest": 10, "rounds": 30 },
+
+  "abc": { "type": "emom", "totalMin": 30, "intervalMin": 1 }
+}
