@@ -21,7 +21,16 @@
       appId: "496e1f04-bb14-4bc5-9889-9a421c0c2905",
       serviceWorkerPath: "timer/OneSignalSDKWorker.js",
       serviceWorkerParam: { scope: "/timer/" }
-    });
+    }).then(function(){
+      // Tapping a "new card" alert while the app is already open: jump
+      // straight to that card. (A cold start is handled by the ?card= link.)
+      try{
+        OneSignal.Notifications.addEventListener("click", function(event){
+          var d = (event && event.notification && event.notification.additionalData) || {};
+          if(d.card && window.__fdfOpenCard) window.__fdfOpenCard(d.card);
+        });
+      }catch(e){}
+    }).catch(function(){});
   });
 </script>
 <style>
@@ -51,11 +60,6 @@
     height:100dvh;
     user-select:none;
     -webkit-user-select:none;
-    /* Belt-and-suspenders centering: some TV browsers don't reliably
-       center a block element via margin:auto alone, so body itself
-       centers #app as a flex container too. */
-    display:flex;
-    justify-content:center;
   }
   button{
     font-family:inherit;
@@ -110,21 +114,11 @@
 
   #app{
     height:100%;
-    width:100%;
     display:flex;
     flex-direction:column;
     max-width:900px;
     margin:0 auto;
     padding:env(safe-area-inset-top,0) env(safe-area-inset-right,0) env(safe-area-inset-bottom,0) env(safe-area-inset-left,0);
-  }
-  /* On genuinely large displays (TVs), let the app breathe wider than the
-     phone-tuned 900px cap even outside the card-split run screen — this is
-     what was leaving a large unused strip on the right on TV before. */
-  @media (min-width:1400px){
-    #app{max-width:1500px;}
-  }
-  @media (min-width:1900px){
-    #app{max-width:1800px;}
   }
   .screen{
     display:none;
@@ -508,13 +502,12 @@
      (~932px) — phones stay in stacked mode below, where the full-width
      timer formula has room and can't spill into the card next to it. */
   body.split #app{max-width:1600px;}
-  @media (min-width:1400px){
-    body.split #app{max-width:1700px;}
-  }
-  @media (min-width:1900px){
-    body.split #app{max-width:2000px;}
-  }
   @media (min-width:1100px){
+    /* Big screens (TV, iPad landscape, desktop) use the whole width. The old
+       900px / 1600px caps left empty bands down both sides of a 1080p TV,
+       and on the select / picker screens the cap was always 900px. */
+    body #app, body.split #app{max-width:2200px;}
+    .type-grid{grid-auto-rows:minmax(150px,200px); align-content:start;}
     body.split .run-body{flex-direction:row; gap:18px;}
     body.split .card-panel{display:flex; flex:1 1 46%;}
     body.split .timer-col{flex:1 1 54%;}
@@ -578,12 +571,15 @@
     .card-grid{grid-template-columns:repeat(6,1fr); gap:12px;}
     .card-choice{padding:7px; gap:5px;}
   }
+  /* TV-sized screens: much smaller thumbnails so a whole library fits on
+     one or two rows and there is little or nothing to scroll. */
   @media (min-width:1400px){
     .card-grid{grid-template-columns:repeat(8,1fr); gap:10px;}
-    .card-choice{padding:6px; gap:4px;}
-    .card-choice .cname{font-size:.72rem;}
+    .card-choice{padding:5px; gap:4px;}
+    .card-choice .cname{font-size:.7rem;}
+    .card-choice.none-option{min-height:0;}
   }
-  @media (min-width:1900px){
+  @media (min-width:1800px){
     .card-grid{grid-template-columns:repeat(10,1fr);}
   }
   .card-choice{
@@ -611,6 +607,7 @@
     text-overflow:ellipsis;
     white-space:nowrap;
   }
+  .card-choice.surprise{color:var(--accent);}
   .card-choice.none-option{
     align-items:center;
     justify-content:center;
@@ -662,19 +659,87 @@
     right:0;
   }
 
+  /* ---------- TV: keep paint work light ---------- */
+  body.tv *{transition:none !important; animation:none !important;}
+  body.tv .nav-focus{box-shadow:0 0 0 4px var(--accent) !important;}
+
+  /* ---------- card-only: loading note ---------- */
+  .cardonly-note{
+    text-align:center;
+    color:var(--muted);
+    font-size:.95rem;
+    padding:.6em 0;
+  }
+
+  /* ---------- roulette ---------- */
+  .roulette-wrap{
+    flex:1 1 auto;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:.9em;
+    min-height:0;
+    text-align:center;
+  }
+  .roulette-card{
+    width:min(46vw, 340px, 40vh);
+    aspect-ratio:3/4;
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    overflow:hidden;
+    background:#fff;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+  .roulette-card.empty{background:var(--panel); color:var(--muted);}
+  .roulette-card img{width:100%; height:100%; object-fit:cover; display:block;}
+  .roulette-name{font-size:1.3rem; font-weight:700; min-height:1.4em;}
+  .roulette-timer{color:var(--accent); font-weight:700; font-size:1.15rem; min-height:1.4em;}
+  .roulette-actions{
+    flex:0 0 auto;
+    display:flex;
+    gap:14px;
+    width:100%;
+    max-width:560px;
+    margin:0 auto;
+    padding-top:1em;
+  }
+  .roulette-actions .ctrl-btn{flex:1;}
+  .roulette-actions .primary-btn{flex:1.4; width:auto;}
+
+  /* ---------- workout log ---------- */
+  .hist-summary{color:var(--muted); font-size:.95rem; line-height:1.5; margin-bottom:.9em;}
+  .hist-actions{display:flex; gap:14px; margin-bottom:.6em;}
+  .hist-actions .ctrl-btn{flex:0 1 auto; padding:.8em 1.2em;}
+  .hist-list{display:flex; flex-direction:column;}
+  .hist-row{
+    display:flex;
+    gap:14px;
+    align-items:center;
+    padding:12px 0;
+    border-bottom:1px solid var(--line);
+  }
+  .hist-main{flex:1 1 auto; min-width:0;}
+  .hist-title{font-weight:700; font-size:1rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .hist-sub{color:var(--muted); font-size:.82rem; margin-top:2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .hist-when{color:var(--muted); font-size:.82rem; text-align:right; flex:0 0 auto; font-variant-numeric:tabular-nums;}
+  .hist-more{color:var(--muted); font-size:.85rem; padding:12px 0;}
+
   @media (prefers-reduced-motion:reduce){
     *{transition:none !important;}
   }
 </style>
 </head>
 <body>
-<video id="nosleep-video" muted loop playsinline webkit-playsinline="true" style="position:fixed;width:1px;height:1px;opacity:0;pointer-events:none;left:-9999px;" src="data:video/mp4;base64,AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAMRbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAAAAAD6AAAA+gAAQAAAQAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAjt0cmFrAAAAXHRraGQAAAADAAAAAAAAAAAAAAABAAAAAAAAA+gAAAAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAABAAAAAAAIAAAACAAAAAAAkZWR0cwAAABxlbHN0AAAAAAAAAAEAAAPoAAAAAAABAAAAAAGzbWRpYQAAACBtZGhkAAAAAAAAAAAAAAAAAABAAAAAQABVxAAAAAAALWhkbHIAAAAAAAAAAHZpZGUAAAAAAAAAAAAAAABWaWRlb0hhbmRsZXIAAAABXm1pbmYAAAAUdm1oZAAAAAEAAAAAAAAAAAAAACRkaW5mAAAAHGRyZWYAAAAAAAAAAQAAAAx1cmwgAAAAAQAAAR5zdGJsAAAAunN0c2QAAAAAAAAAAQAAAKphdmMxAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAAAAAIAAgBIAAAASAAAAAAAAAABFUxhdmM2MC4zMS4xMDIgbGlieDI2NAAAAAAAAAAAAAAAGP//AAAAMGF2Y0MBQsAe/+EAGGdCwB7ZH4iIwEQAAAMABAAAAwAIPFi5IAEABWjLg8sgAAAAEHBhc3AAAAABAAAAAQAAABRidHJ0AAAAAAAAFDAAABQwAAAAGHN0dHMAAAAAAAAAAQAAAAEAAEAAAAAAHHN0c2MAAAAAAAAAAQAAAAEAAAABAAAAAQAAABRzdHN6AAAAAAAAAoYAAAABAAAAFHN0Y28AAAAAAAAAAQAAA0EAAABidWR0YQAAAFptZXRhAAAAAAAAACFoZGxyAAAAAAAAAABtZGlyYXBwbAAAAAAAAAAAAAAAAC1pbHN0AAAAJal0b28AAAAdZGF0YQAAAAEAAAAATGF2ZjYwLjE2LjEwMAAAAAhmcmVlAAACjm1kYXQAAAJwBgX//2zcRem95tlIt5Ys2CDZI+7veDI2NCAtIGNvcmUgMTY0IHIzMTA4IDMxZTE5ZjkgLSBILjI2NC9NUEVHLTQgQVZDIGNvZGVjIC0gQ29weWxlZnQgMjAwMy0yMDIzIC0gaHR0cDovL3d3dy52aWRlb2xhbi5vcmcveDI2NC5odG1sIC0gb3B0aW9uczogY2FiYWM9MCByZWY9MyBkZWJsb2NrPTE6MDowIGFuYWx5c2U9MHgxOjB4MTExIG1lPWhleCBzdWJtZT03IHBzeT0xIHBzeV9yZD0xLjAwOjAuMDAgbWl4ZWRfcmVmPTEgbWVfcmFuZ2U9MTYgY2hyb21hX21lPTEgdHJlbGxpcz0xIDh4OGRjdD0wIGNxbT0wIGRlYWR6b25lPTIxLDExIGZhc3RfcHNraXA9MSBjaHJvbWFfcXBfb2Zmc2V0PS0yIHRocmVhZHM9MSBsb29rYWhlYWRfdGhyZWFkcz0xIHNsaWNlZF90aHJlYWRzPTAgbnI9MCBkZWNpbWF0ZT0xIGludGVybGFjZWQ9MCBibHVyYXlfY29tcGF0PTAgY29uc3RyYWluZWRfaW50cmE9MCBiZnJhbWVzPTAgd2VpZ2h0cD0wIGtleWludD0yNTAga2V5aW50X21pbj0xIHNjZW5lY3V0PTQwIGludHJhX3JlZnJlc2g9MCByY19sb29rYWhlYWQ9NDAgcmM9Y3JmIG1idHJlZT0xIGNyZj0yMy4wIHFjb21wPTAuNjAgcXBtaW49MCBxcG1heD02OSBxcHN0ZXA9NCBpcF9yYXRpbz0xLjQwIGFxPTE6MS4wMACAAAAADmWIhAV///8PRQABQt+A"></video>
 <div id="app">
 
   <!-- ===================== SELECT SCREEN ===================== -->
   <section class="screen active" id="screen-select">
     <div class="topbar">
       <div class="brand">first due<span class="dot">fitness</span></div>
+      <button class="navbtn" id="btn-history">History</button>
     </div>
     <div class="select-title">What are we running?</div>
 
@@ -686,6 +751,8 @@
       </span>
       <span class="csb-chev" aria-hidden="true">&rsaquo;</span>
     </button>
+
+    <button class="primary-btn" id="btn-start-card" style="display:none; margin-bottom:1.1em;"></button>
 
     <div class="select-sub">Pick a timer type to configure it.</div>
     <div class="type-grid" id="type-grid"></div>
@@ -718,6 +785,7 @@
     <div class="cardonly-wrap" id="cardonly-wrap">
       <img id="cardonly-img" alt="Workout card">
     </div>
+    <div class="cardonly-note" id="cardonly-note" style="display:none;"></div>
     <div class="cardonly-empty" id="cardonly-empty" style="display:none;">
       <p>No card selected yet.</p>
       <button class="primary-btn" id="btn-cardonly-pick">Choose a card</button>
@@ -740,6 +808,45 @@
     <div class="config-footer">
       <button class="primary-btn" id="btn-start">Start</button>
     </div>
+  </section>
+
+  <!-- ===================== ROULETTE SCREEN ===================== -->
+  <section class="screen" id="screen-roulette">
+    <div class="topbar">
+      <button class="navbtn" id="btn-roulette-back">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
+        Back
+      </button>
+    </div>
+    <div class="roulette-wrap">
+      <div class="roulette-card empty" id="roulette-card">
+        <img id="roulette-img" alt="" style="display:none;">
+        <span id="roulette-empty">Spinning&hellip;</span>
+      </div>
+      <div class="roulette-name" id="roulette-name">&nbsp;</div>
+      <div class="roulette-timer" id="roulette-timer">&nbsp;</div>
+    </div>
+    <div class="roulette-actions">
+      <button class="ctrl-btn" id="btn-roulette-spin">Spin again</button>
+      <button class="primary-btn" id="btn-roulette-go">Let&rsquo;s go</button>
+    </div>
+  </section>
+
+  <!-- ===================== HISTORY SCREEN ===================== -->
+  <section class="screen" id="screen-history">
+    <div class="topbar">
+      <button class="navbtn" id="btn-history-back">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
+        Back
+      </button>
+    </div>
+    <div class="select-title">Workout log</div>
+    <div class="hist-summary" id="hist-summary"></div>
+    <div class="hist-actions" id="hist-actions">
+      <button class="ctrl-btn" id="btn-hist-copy">Copy as CSV</button>
+      <button class="ctrl-btn" id="btn-hist-clear">Clear log</button>
+    </div>
+    <div class="hist-list" id="hist-list"></div>
   </section>
 
   <!-- ===================== RUN SCREEN ===================== -->
@@ -784,6 +891,15 @@
 <script>
 (function(){
   "use strict";
+
+  /* ===================== DEVICE FLAGS ===================== */
+  var UA = navigator.userAgent || "";
+  // Smart-TV browsers (Samsung Tizen, LG webOS, etc.). Add ?tv to the URL to
+  // force TV mode for testing, or ?notv to force it off.
+  var IS_TV = /Tizen|SMART-TV|SmartTV|Web0S|webOS|NetCast|HbbTV|BRAVIA|Roku/i.test(UA) || /[?&]tv(&|$)/.test(location.search);
+  if(/[?&]notv(&|$)/.test(location.search)) IS_TV = false;
+  var IS_IOS = /iPad|iPhone|iPod/.test(UA) || (/Macintosh/.test(UA) && navigator.maxTouchPoints > 1);
+  if(IS_TV) document.body.classList.add("tv");
 
   /* ===================== CONSTANTS ===================== */
   var TYPES = [
@@ -854,32 +970,117 @@
     }
   };
 
-  /* ===================== WAKE LOCK ===================== */
-  var wakeLock = null;
+  /* ===================== KEEP AWAKE ===================== */
+  // Layer 1: the Screen Wake Lock API.
+  // Layer 2: a tiny silent looping video (the NoSleep.js trick; MIT licence,
+  // (c) Rich Tibbett). It is used on iPhone/iPad, because home-screen web
+  // apps on many iOS versions accept wake-lock requests without honouring
+  // them, and anywhere the API is missing or refuses.
+  // The screen is held awake whenever the run screen (until the workout is
+  // over) or the card-only screen is showing.
+  var NOSLEEP_WEBM = "data:video/webm;base64,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";
+  var NOSLEEP_MP4 = "data:video/mp4;base64,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";
 
-  // Fallback for browsers without the Wake Lock API (notably iOS before
-  // 16.4 — exactly the iPad mini's problem). A muted, invisible, looping
-  // video (embedded in the page as #nosleep-video) is the standard trick:
-  // most mobile browsers treat "playing video" as a reason not to sleep,
-  // even when they don't support the real Wake Lock API.
-  function wakeVideo(){ return document.getElementById("nosleep-video"); }
+  var Awake = (function(){
+    var wanted = false;
+    var lock = null, lockAt = 0, lockBroken = false, selfRelease = false;
+    var video = null;
+    var HAS_LOCK = ("wakeLock" in navigator);
+    function note(m){ dlog("awake: " + m); }
 
-  function requestWake(){
-    if("wakeLock" in navigator){
-      navigator.wakeLock.request("screen").then(function(wl){ wakeLock = wl; }).catch(function(){});
-    } else {
-      var v = wakeVideo();
-      if(v){ try{ var p = v.play(); if(p && p.catch) p.catch(function(){}); }catch(e){} }
+    function startVideo(){
+      if(IS_TV) return;
+      try{
+        if(!video){
+          video = document.createElement("video");
+          video.setAttribute("title", "keep awake");
+          video.setAttribute("playsinline", "");
+          video.setAttribute("muted", "");
+          video.muted = true;
+          var s1 = document.createElement("source");
+          s1.src = NOSLEEP_WEBM; s1.type = "video/webm";
+          var s2 = document.createElement("source");
+          s2.src = NOSLEEP_MP4; s2.type = "video/mp4";
+          video.appendChild(s1); video.appendChild(s2);
+          video.addEventListener("loadedmetadata", function(){
+            if(video.duration <= 1){
+              video.setAttribute("loop", "");
+            } else {
+              video.addEventListener("timeupdate", function(){
+                if(video.currentTime > 0.5) video.currentTime = Math.random();
+              });
+            }
+          });
+        }
+        if(video.paused){
+          var p = video.play();
+          if(p && p.then){
+            p.then(function(){ note("video playing"); })
+             .catch(function(){ note("video blocked until the next tap"); });
+          }
+        }
+      }catch(e){}
     }
+    function stopVideo(){
+      try{ if(video && !video.paused) video.pause(); }catch(e){}
+    }
+
+    function acquire(){
+      if(!HAS_LOCK || lockBroken) return Promise.resolve(false);
+      if(lock) return Promise.resolve(true);
+      return navigator.wakeLock.request("screen").then(function(wl){
+        lock = wl; lockAt = Date.now();
+        wl.addEventListener("release", function(){
+          if(selfRelease){ selfRelease = false; return; }
+          var heldFor = Date.now() - lockAt;
+          lock = null;
+          if(heldFor < 1500){
+            lockBroken = true;
+            note("wake lock dropped instantly, relying on video");
+            if(wanted) startVideo();
+            return;
+          }
+          note("wake lock released by the system");
+          if(wanted && document.visibilityState === "visible") setTimeout(sync, 250);
+        });
+        note("wake lock held");
+        return true;
+      }).catch(function(e){
+        note("wake lock refused (" + (e && e.name) + ")");
+        return false;
+      });
+    }
+
+    function sync(){
+      if(wanted){
+        acquire().then(function(ok){
+          if(!wanted) return;
+          if(IS_IOS || !HAS_LOCK || !ok) startVideo(); else stopVideo();
+        });
+      } else {
+        stopVideo();
+        if(lock){
+          var l = lock; lock = null; selfRelease = true;
+          try{ l.release(); }catch(e){ selfRelease = false; }
+        }
+      }
+    }
+
+    document.addEventListener("visibilitychange", function(){
+      if(document.visibilityState === "visible" && wanted) sync();
+    });
+    // Some browsers only let the video start after a tap, so every tap while
+    // the screen should stay awake gets another try (it is a no-op once held).
+    document.addEventListener("click", function(){ if(wanted) sync(); }, true);
+
+    return { set: function(w){ wanted = !!w; sync(); } };
+  })();
+
+  function syncAwake(){
+    var runActive = el("screen-run").classList.contains("active");
+    var cardActive = el("screen-cardonly").classList.contains("active");
+    Awake.set(cardActive || (runActive && !runDone));
   }
-  function releaseWake(){
-    if(wakeLock){ wakeLock.release().catch(function(){}); wakeLock = null; }
-    var v = wakeVideo();
-    if(v){ try{ v.pause(); }catch(e){} }
-  }
-  document.addEventListener("visibilitychange", function(){
-    if(document.visibilityState === "visible" && running) requestWake();
-  });
 
   /* ===================== HELPERS ===================== */
   function pad(n){ return (n<10?"0":"")+n; }
@@ -896,6 +1097,7 @@
     document.querySelectorAll(".screen").forEach(function(s){ s.classList.remove("active"); });
     el(id).classList.add("active");
     if(typeof focusFirst === "function") focusFirst(id);
+    syncAwake();
   }
 
   /* ===================== STATE ===================== */
@@ -916,6 +1118,9 @@
   var finalElapsed = 0;
   var preStarting = false;
   var preStartTimer = null;
+  var runDone = false;       // workout finished (stops keep-awake)
+  var runStartedAt = 0;      // when the real timer began (0 = not started)
+  var runLogged = false;     // this run already written to the log
 
   /* ===================== BUILD SELECT GRID ===================== */
   var grid = el("type-grid");
@@ -935,8 +1140,8 @@
   })();
 
   el("btn-back-to-select").addEventListener("click", function(){ show("screen-select"); });
-  el("btn-exit").addEventListener("click", function(){ stopRun(true); show("screen-select"); });
-  el("btn-exit-bottom").addEventListener("click", function(){ stopRun(true); show("screen-select"); });
+  el("btn-exit").addEventListener("click", function(){ logRun(false); stopRun(true); show("screen-select"); });
+  el("btn-exit-bottom").addEventListener("click", function(){ logRun(false); stopRun(true); show("screen-select"); });
 
   /* ===================== CONFIG SCREEN BUILDERS ===================== */
   function makeStepper(step, min, max, initialValue, unitLabel, extraClass){
@@ -1191,6 +1396,7 @@
   function setupRun(type, cfg){
     running = false; paused = false; pausedAccum = 0; lastPhaseIdx = -1; lastWholeSecond = -1;
     capFired = false; finished = false; finalElapsed = 0;
+    runDone = false; runStartedAt = 0; runLogged = false;
     el("btn-finish").style.display = "none";
     el("btn-reset").style.display = "";
     el("cap-flag").classList.remove("show");
@@ -1236,6 +1442,7 @@
     }
     el("progress-fill").style.width = "0%";
     el("progress-fill").style.background = "var(--fg)";
+    syncAwake();
   }
 
   el("btn-toggle").addEventListener("click", function(){
@@ -1243,6 +1450,7 @@
     if(!running){ startPreCountdown(); } else if(!paused){ pauseRun(); } else { resumeRun(); }
   });
   el("btn-reset").addEventListener("click", function(){
+    logRun(false);
     if(preStartTimer){ clearInterval(preStartTimer); preStartTimer=null; preStarting=false; }
     setupRun(currentType, currentConfig);
   });
@@ -1252,7 +1460,9 @@
     finished = true;
     running = false;
     if(rafId) cancelAnimationFrame(rafId);
-    releaseWake();
+    runDone = true;
+    logRun(true, finalElapsed);
+    syncAwake();
     el("phase-label").textContent = "FINISHED";
     el("phase-label").className = "phase-label neutral";
     el("time-display").textContent = fmt(finalElapsed);
@@ -1267,6 +1477,7 @@
 
   function startPreCountdown(){
     preStarting = true;
+    syncAwake();   // inside the tap, so the keep-awake video is allowed to start
     var n = PRESTART_SECONDS;
     el("phase-label").textContent = "GET READY";
     el("phase-label").className = "phase-label neutral";
@@ -1293,7 +1504,10 @@
     running = true; paused = false;
     startTime = Date.now();
     pausedAccum = 0;
-    requestWake();
+    runStartedAt = startTime;
+    runLogged = false;
+    runDone = false;
+    syncAwake();
     el("btn-toggle").textContent = "Pause";
     el("btn-toggle").classList.add("running");
     tick();
@@ -1303,13 +1517,13 @@
     pausedAt = Date.now();
     el("btn-toggle").textContent = "Resume";
     if(rafId) cancelAnimationFrame(rafId);
-    releaseWake();
+    // stay awake while paused: a quick breather shouldn't blank the screen
   }
   function resumeRun(){
     pausedAccum += Date.now() - pausedAt;
     paused = false;
     el("btn-toggle").textContent = "Pause";
-    requestWake();
+    syncAwake();
     tick();
   }
   function stopRun(){
@@ -1317,7 +1531,6 @@
     if(rafId) cancelAnimationFrame(rafId);
     if(preStartTimer){ clearInterval(preStartTimer); preStartTimer = null; }
     preStarting = false;
-    releaseWake();
   }
 
   /* ===================== MAIN TICK ===================== */
@@ -1420,7 +1633,9 @@
   function finishNoInput(){
     running = false;
     if(rafId) cancelAnimationFrame(rafId);
-    releaseWake();
+    runDone = true;
+    logRun(true);
+    syncAwake();
     el("phase-label").textContent = "DONE";
     el("phase-label").className = "phase-label neutral";
     el("btn-toggle").textContent = "Done";
@@ -1439,19 +1654,36 @@
 
   var cardList = [];
   var selectedCard = null;
+  var cardTimers = {};   // suggested timer per card, from card-timers.json
 
+  // File names become labels. Underscores separate words (so real hyphens are
+  // kept: Sit-ups_and_Shut-ups -> "Sit-ups And Shut-ups"), and "_s_" becomes an
+  // apostrophe (Hell_s_Bells -> "Hell's Bells"). Names with no underscores at
+  // all use hyphens as separators, like chest-and-back -> "Chest And Back".
   function prettyName(filename){
-    return filename
-      .replace(IMG_RE, "")
-      .replace(/[-_]+/g, " ")
-      .replace(/\s+/g, " ")
-      .trim()
-      .replace(/\b\w/g, function(c){ return c.toUpperCase(); });
+    var s = filename.replace(IMG_RE, "");
+    s = s.replace(/([A-Za-z])_s(?=_|$)/g, "$1\u2019s");
+    s = (s.indexOf("_") !== -1) ? s.replace(/_+/g, " ") : s.replace(/-+/g, " ");
+    s = s.replace(/\s+/g, " ").trim();
+    return s.replace(/(^|\s)([a-z])/g, function(m, a, b){ return a + b.toUpperCase(); });
   }
 
   function cardUrl(filename){
     var base = location.pathname.replace(/[^/]*$/, "");
     return base + CARDS_FOLDER + "/" + encodeURIComponent(filename);
+  }
+
+  // Small preview copies (cards/thumbs/<name>.jpg, made automatically by the
+  // thumbnail workflow). Decoding a full-size card for every tile is what
+  // makes the picker crawl on a TV; a thumbnail is a fraction of the work.
+  // If a thumbnail doesn't exist yet, the tile quietly uses the full image.
+  function thumbUrl(filename){
+    var base = location.pathname.replace(/[^/]*$/, "");
+    return base + CARDS_FOLDER + "/thumbs/" + encodeURIComponent(filename.replace(IMG_RE, "")) + ".jpg";
+  }
+  function setThumb(img, filename){
+    img.onerror = function(){ img.onerror = null; img.src = cardUrl(filename); };
+    img.src = thumbUrl(filename);
   }
 
   function cachedCards(){
@@ -1474,19 +1706,10 @@
     return { user:user, repo:repo };
   }
 
-  function discoverCards(force, done){
-    var cached = cachedCards();
-    if(cached && cached.length && !force){
-      cardList = cached;
-      done(cardList, "cache");
-      return;
-    }
+  // Ask GitHub for the list of files in cards/. Calls ok(files) or fail().
+  function fetchCardList(ok, fail){
     var info = inferRepo();
-    if(!info || typeof fetch !== "function"){
-      cardList = MANUAL_CARDS.slice();
-      done(cardList, cardList.length ? "manual" : "none");
-      return;
-    }
+    if(!info || typeof fetch !== "function"){ fail(); return; }
     var api = "https://api.github.com/repos/" + info.user + "/" + info.repo +
               "/contents/" + CARDS_FOLDER;
     fetch(api)
@@ -1497,15 +1720,48 @@
           .filter(function(f){ return f.type === "file" && IMG_RE.test(f.name); })
           .map(function(f){ return f.name; })
           .sort(function(a,b){ return a.localeCompare(b); });
-        cardList = files;
-        cacheCards(files);
-        done(cardList, "github");
+        ok(files);
       })
-      .catch(function(){
-        var fallback = cached && cached.length ? cached : MANUAL_CARDS.slice();
-        cardList = fallback;
-        done(cardList, fallback.length ? "fallback" : "none");
-      });
+      .catch(function(){ fail(); });
+  }
+
+  // Quietly re-check the list in the background (at most every 10 minutes)
+  // so new cards show up without anyone having to tap Refresh.
+  var lastListCheck = 0;
+  function revalidateCards(){
+    var now = Date.now();
+    if(now - lastListCheck < 600000) return;
+    lastListCheck = now;
+    fetchCardList(function(files){
+      if(JSON.stringify(files) === JSON.stringify(cardList)) return;
+      cardList = files;
+      cacheCards(files);
+      warmCardCache();
+      if(el("screen-cards").classList.contains("active")) renderCardGrid(cardList, "github");
+    }, function(){});
+  }
+  window.addEventListener("online", function(){ lastListCheck = 0; revalidateCards(); });
+
+  function discoverCards(force, done){
+    var cached = cachedCards();
+    if(cached && cached.length && !force){
+      cardList = cached;
+      warmCardCache();
+      done(cardList, "cache");
+      revalidateCards();
+      return;
+    }
+    fetchCardList(function(files){
+      cardList = files;
+      cacheCards(files);
+      lastListCheck = Date.now();
+      warmCardCache();
+      done(cardList, "github");
+    }, function(){
+      var fallback = cached && cached.length ? cached : MANUAL_CARDS.slice();
+      cardList = fallback;
+      done(cardList, fallback.length ? "fallback" : "none");
+    });
   }
 
   function setSelectedCard(filename){
@@ -1521,7 +1777,7 @@
     el("card-select-label").textContent = selectedCard ? prettyName(selectedCard) : "Choose a card";
     var thumb = el("card-select-thumb");
     if(selectedCard){
-      thumb.src = cardUrl(selectedCard);
+      setThumb(thumb, selectedCard);
       thumb.alt = prettyName(selectedCard);
       thumb.style.display = "";
       el("card-img").src = cardUrl(selectedCard);
@@ -1532,6 +1788,7 @@
       el("card-img").removeAttribute("src");
       document.body.classList.remove("card-open");
     }
+    updateCardStart();
   }
 
   var cardPickerReturn = "screen-select";
@@ -1557,7 +1814,8 @@
       return;
     }
 
-    sub.textContent = list.length + " card" + (list.length===1?"":"s") + " available.";
+    sub.textContent = list.length + " card" + (list.length===1?"":"s") + " available." +
+      (source === "fallback" ? " Offline, showing your saved list." : "");
 
     var none = document.createElement("button");
     none.type = "button";
@@ -1569,12 +1827,19 @@
     });
     grid2.appendChild(none);
 
+    var surprise = document.createElement("button");
+    surprise.type = "button";
+    surprise.className = "card-choice none-option surprise";
+    surprise.textContent = "Surprise me";
+    surprise.addEventListener("click", function(){ openRoulette(); });
+    grid2.appendChild(surprise);
+
     list.forEach(function(name){
       var btn = document.createElement("button");
       btn.type = "button";
       btn.className = "card-choice" + (name === selectedCard ? " selected" : "");
       var im = document.createElement("img");
-      im.src = cardUrl(name);
+      setThumb(im, name);
       im.alt = prettyName(name);
       im.loading = "lazy";
       im.decoding = "async";
@@ -1640,22 +1905,414 @@
     discoverCards(false, function(){});
   })();
 
-  // Deep link from the "new card added" push notification: ?card=filename
-  // jumps straight to that card instead of the normal select screen.
-  (function(){
+  /* ===================== WORKOUT LOG ===================== */
+  // Saved on this device only (localStorage). One entry per workout that
+  // actually ran: when, which timer, which card, how long, finished or not.
+  var LOG_KEY = "bell_log";
+  var LOG_MAX = 300;
+  var LOG_MIN_SECONDS = 30;   // ignore accidental starts
+
+  function loadLog(){
+    if(!store) return [];
     try{
-      var params = new URLSearchParams(location.search);
-      var linkedCard = params.get("card");
-      if(linkedCard){
-        setSelectedCard(linkedCard);
-        openCardOnly();
-        // Clean the URL so refreshing/sharing doesn't keep re-triggering this.
-        if(window.history && history.replaceState){
-          history.replaceState(null, "", location.pathname);
-        }
+      var v = store.getItem(LOG_KEY);
+      var a = v ? JSON.parse(v) : [];
+      return Array.isArray(a) ? a : [];
+    }catch(e){ return []; }
+  }
+  function saveLog(list){
+    if(!store) return;
+    try{ store.setItem(LOG_KEY, JSON.stringify(list.slice(-LOG_MAX))); }catch(e){}
+  }
+  function lenLabel(min){
+    return (min >= 1 && min === Math.floor(min)) ? (min + " min") : (Math.round(min*60) + "s");
+  }
+  function describeRun(type, cfg){
+    cfg = cfg || {};
+    if(type === "amrap") return "AMRAP " + cfg.minutes + " min";
+    if(type === "emom") return "EMOM " + cfg.totalMin + " min, every " + lenLabel(cfg.intervalMin);
+    if(type === "interval") return cfg.work + "/" + cfg.rest + " \u00D7 " + cfg.rounds;
+    if(type === "plank") return "Plank ladder";
+    if(type === "fortime") return "For time" + (cfg.hasCap ? " (" + cfg.capMin + " min cap)" : "");
+    return String(type);
+  }
+  function plannedSeconds(){
+    if(currentType === "amrap") return capSeconds;
+    if(phases.length) return phases.reduce(function(s,p){ return s + p.duration; }, 0);
+    return 0;
+  }
+  // completed = ran to the end (or For-time Finish); otherwise it was cut short.
+  function logRun(completed, secsOverride){
+    if(runLogged || !runStartedAt) return;
+    var secs;
+    if(typeof secsOverride === "number") secs = secsOverride;
+    else if(completed && plannedSeconds()) secs = plannedSeconds();
+    else secs = (running || paused) ? getElapsed() : 0;
+    secs = Math.max(0, Math.round(secs));
+    runLogged = true;
+    if(!completed && secs < LOG_MIN_SECONDS) return;
+    var list = loadLog();
+    list.push({
+      t: Date.now(),
+      type: currentType,
+      label: describeRun(currentType, currentConfig),
+      card: (currentType === "plank") ? null : selectedCard,
+      secs: secs,
+      done: !!completed
+    });
+    saveLog(list);
+  }
+
+  function whenLabel(t){
+    try{
+      var d = new Date(t);
+      return d.toLocaleDateString(undefined, { month:"short", day:"numeric" }) + ", " +
+             d.toLocaleTimeString(undefined, { hour:"numeric", minute:"2-digit" });
+    }catch(e){ return String(new Date(t)).slice(4, 21); }
+  }
+  var HIST_SHOWN = 40;
+  function renderHistory(){
+    var list = loadLog();
+    var summary = el("hist-summary");
+    var box = el("hist-list");
+    box.innerHTML = "";
+    if(!list.length){
+      summary.textContent = "Nothing logged yet. Workouts are saved here automatically once a timer has run.";
+      el("hist-actions").style.display = "none";
+      return;
+    }
+    el("hist-actions").style.display = "";
+    var weekAgo = Date.now() - 7*24*3600*1000;
+    var week = list.filter(function(e){ return e.t >= weekAgo; }).length;
+    var counts = {}, top = null;
+    list.forEach(function(e){
+      if(!e.card) return;
+      counts[e.card] = (counts[e.card] || 0) + 1;
+      if(!top || counts[e.card] > counts[top]) top = e.card;
+    });
+    summary.textContent = list.length + " workout" + (list.length === 1 ? "" : "s") + " logged, " +
+      week + " in the last 7 days." + (top ? " Most run card: " + prettyName(top) + "." : "") +
+      " Saved on this device only.";
+
+    list.slice().reverse().slice(0, HIST_SHOWN).forEach(function(e){
+      var row = document.createElement("div"); row.className = "hist-row";
+      var main = document.createElement("div"); main.className = "hist-main";
+      var title = document.createElement("div"); title.className = "hist-title"; title.textContent = e.label || e.type;
+      var sub = document.createElement("div"); sub.className = "hist-sub";
+      sub.textContent = (e.card ? prettyName(e.card) : "No card") + ", " + fmt(e.secs) + (e.done ? "" : ", ended early");
+      main.appendChild(title); main.appendChild(sub);
+      var when = document.createElement("div"); when.className = "hist-when"; when.textContent = whenLabel(e.t);
+      row.appendChild(main); row.appendChild(when);
+      box.appendChild(row);
+    });
+    if(list.length > HIST_SHOWN){
+      var more = document.createElement("div"); more.className = "hist-more";
+      more.textContent = "Showing the latest " + HIST_SHOWN + " of " + list.length + ". Copy as CSV includes everything.";
+      box.appendChild(more);
+    }
+  }
+  function csvCell(s){
+    s = String(s == null ? "" : s);
+    return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  }
+  function logCsv(){
+    var rows = ["date,time,workout,card,seconds,completed"];
+    loadLog().forEach(function(e){
+      var d = new Date(e.t);
+      rows.push([
+        d.getFullYear() + "-" + pad(d.getMonth()+1) + "-" + pad(d.getDate()),
+        pad(d.getHours()) + ":" + pad(d.getMinutes()),
+        csvCell(e.label), csvCell(e.card ? prettyName(e.card) : ""), e.secs, e.done ? "yes" : "no"
+      ].join(","));
+    });
+    return rows.join("\n");
+  }
+  function copyText(text, done){
+    function fallback(){
+      try{
+        var ta = document.createElement("textarea");
+        ta.value = text;
+        ta.setAttribute("readonly", "");
+        ta.style.cssText = "position:fixed;top:0;left:0;opacity:0;user-select:text;-webkit-user-select:text;";
+        document.body.appendChild(ta);
+        ta.select();
+        try{ ta.setSelectionRange(0, text.length); }catch(e){}
+        var ok = document.execCommand("copy");
+        document.body.removeChild(ta);
+        done(!!ok);
+      }catch(e){ done(false); }
+    }
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(text).then(function(){ done(true); }, fallback);
+    } else { fallback(); }
+  }
+  function openHistory(){ renderHistory(); show("screen-history"); }
+
+  el("btn-history").addEventListener("click", openHistory);
+  el("btn-history-back").addEventListener("click", function(){ show("screen-select"); });
+  el("btn-hist-copy").addEventListener("click", function(){
+    var b = el("btn-hist-copy");
+    copyText(logCsv(), function(ok){
+      b.textContent = ok ? "Copied" : "Copy failed";
+      setTimeout(function(){ b.textContent = "Copy as CSV"; }, 2000);
+    });
+  });
+  var clearArmed = false, clearTimer = null;
+  function disarmClear(){
+    clearArmed = false;
+    if(clearTimer){ clearTimeout(clearTimer); clearTimer = null; }
+    el("btn-hist-clear").textContent = "Clear log";
+  }
+  el("btn-hist-clear").addEventListener("click", function(){
+    if(!clearArmed){
+      clearArmed = true;
+      el("btn-hist-clear").textContent = "Tap again to clear";
+      clearTimer = setTimeout(disarmClear, 4000);
+      return;
+    }
+    disarmClear();
+    if(store){ try{ store.removeItem(LOG_KEY); }catch(e){} }
+    renderHistory();
+  });
+
+  /* ===================== CARD TIMERS (suggested timer per card) ===================== */
+  // card-timers.json (next to index.html) says which timer each card is meant
+  // for, keyed by the file name in lowercase with dashes: "Hell_s_Bells.jpg"
+  // is "hell-s-bells". Cards without an entry still work everywhere.
+  var TIMERS_FILE = "card-timers.json";
+  function cardKey(filename){
+    return String(filename).replace(IMG_RE, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+  }
+  function posNum(v){ v = parseFloat(v); return (isFinite(v) && v > 0) ? v : null; }
+  function cleanTimer(t){
+    if(!t || typeof t !== "object") return null;
+    if(t.type === "amrap"){
+      var m = posNum(t.minutes);
+      return m ? { type:"amrap", cfg:{ minutes:m } } : null;
+    }
+    if(t.type === "emom"){
+      var tot = posNum(t.totalMin), iv = posNum(t.intervalMin) || 1;
+      return tot ? { type:"emom", cfg:{ totalMin:tot, intervalMin:iv } } : null;
+    }
+    if(t.type === "interval"){
+      var w = posNum(t.work), ro = posNum(t.rounds), r = parseFloat(t.rest);
+      if(!isFinite(r) || r < 0) r = 0;
+      return (w && ro) ? { type:"interval", cfg:{ work:w, rest:r, rounds:ro } } : null;
+    }
+    if(t.type === "fortime"){
+      var cap = posNum(t.capMin);
+      return { type:"fortime", cfg: cap ? { hasCap:true, capMin:cap } : { hasCap:false, capMin:20 } };
+    }
+    return null;
+  }
+  function cardTimerFor(filename){
+    return cleanTimer(cardTimers[cardKey(filename)]);   // a fresh object every call
+  }
+  function timerButtonLabel(def){
+    return "Start " + describeRun(def.type, def.cfg).replace(/^For time/, "for time");
+  }
+  // On the select screen: one tap starts the selected card's own timer.
+  function updateCardStart(){
+    var b = el("btn-start-card");
+    var def = selectedCard ? cardTimerFor(selectedCard) : null;
+    if(!def){ b.style.display = "none"; return; }
+    b.textContent = timerButtonLabel(def);
+    b.style.display = "";
+  }
+  el("btn-start-card").addEventListener("click", function(){
+    var def = selectedCard ? cardTimerFor(selectedCard) : null;
+    if(!def) return;
+    currentType = def.type;
+    currentConfig = def.cfg;
+    setupRun(currentType, currentConfig);
+    show("screen-run");
+  });
+  function setCardTimers(obj){
+    if(!obj || typeof obj !== "object") return;
+    var clean = {};
+    Object.keys(obj).forEach(function(k){ if(k.charAt(0) !== "_") clean[k] = obj[k]; });
+    cardTimers = clean;
+    updateCardStart();
+  }
+  function loadCardTimers(){
+    if(store){
+      try{ var v = store.getItem("bell_card_timers"); if(v) setCardTimers(JSON.parse(v)); }catch(e){}
+    }
+    if(typeof fetch !== "function") return;
+    var base = location.pathname.replace(/[^/]*$/, "");
+    fetch(base + TIMERS_FILE, { cache:"no-cache" })
+      .then(function(r){ if(!r.ok) throw new Error("http " + r.status); return r.json(); })
+      .then(function(obj){
+        setCardTimers(obj);
+        if(store){ try{ store.setItem("bell_card_timers", JSON.stringify(obj)); }catch(e){} }
+      })
+      .catch(function(){});
+  }
+
+  /* ===================== WORKOUT ROULETTE ===================== */
+  // Picks a random card plus a sensible timer. Nothing here overwrites the
+  // timer settings you saved for each type.
+  var ROULETTE = [
+    { type:"amrap", cfgs:[ {minutes:10}, {minutes:15}, {minutes:20} ] },
+    { type:"emom", cfgs:[ {totalMin:10,intervalMin:1}, {totalMin:15,intervalMin:1}, {totalMin:20,intervalMin:1} ] },
+    { type:"interval", cfgs:[
+      {work:20,rest:10,rounds:8}, {work:30,rest:15,rounds:8}, {work:40,rest:20,rounds:6},
+      {work:45,rest:15,rounds:10}, {work:60,rest:30,rounds:5} ] },
+    { type:"fortime", cfgs:[ {hasCap:true,capMin:15}, {hasCap:true,capMin:20}, {hasCap:true,capMin:30} ] }
+  ];
+  var roulette = null;
+  var rouletteBusy = false;
+
+  function pickOne(arr){ return arr[Math.floor(Math.random() * arr.length)]; }
+  // Picks a random card, then uses that card's own timer when it has one;
+  // a card with no entry gets a random sensible timer instead.
+  function rollRoulette(){
+    var pool = cardList.slice();
+    if(roulette && roulette.card && pool.length > 1){
+      pool = pool.filter(function(c){ return c !== roulette.card; });
+    }
+    var card = pool.length ? pickOne(pool) : null;
+    var def = card ? cardTimerFor(card) : null;
+    if(def) return { card: card, type: def.type, cfg: def.cfg };
+    var group = pickOne(ROULETTE);
+    return { card: card, type: group.type, cfg: JSON.parse(JSON.stringify(pickOne(group.cfgs))) };
+  }
+  function paintRoulette(r, withImage){
+    el("roulette-name").textContent = r.card ? prettyName(r.card) : "No card";
+    el("roulette-timer").textContent = describeRun(r.type, r.cfg);
+    if(!withImage) return;
+    var img = el("roulette-img"), box = el("roulette-card"), empty = el("roulette-empty");
+    if(r.card){
+      setThumb(img, r.card);
+      img.alt = prettyName(r.card);
+      img.style.display = "";
+      empty.style.display = "none";
+      box.classList.remove("empty");
+    } else {
+      img.removeAttribute("src");
+      img.style.display = "none";
+      empty.textContent = "No cards yet";
+      empty.style.display = "";
+      box.classList.add("empty");
+    }
+  }
+  function spinRoulette(){
+    if(rouletteBusy) return;
+    rouletteBusy = true;
+    var final = rollRoulette();
+    var reduce = false;
+    try{ reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches; }catch(e){}
+    var frames = (reduce || IS_TV) ? 0 : 7, n = 0;
+    (function step(){
+      if(n < frames){
+        paintRoulette(rollRoulette(), false);
+        n++;
+        setTimeout(step, 80);
+        return;
       }
+      roulette = final;
+      paintRoulette(final, true);
+      rouletteBusy = false;
+    })();
+  }
+  function openRoulette(){
+    roulette = null;
+    show("screen-roulette");
+    discoverCards(false, function(){ spinRoulette(); });
+  }
+  el("btn-roulette-back").addEventListener("click", function(){ show("screen-select"); });
+  el("btn-roulette-spin").addEventListener("click", spinRoulette);
+  el("btn-roulette-go").addEventListener("click", function(){
+    if(!roulette || rouletteBusy) return;
+    if(roulette.card) setSelectedCard(roulette.card);
+    currentType = roulette.type;
+    currentConfig = JSON.parse(JSON.stringify(roulette.cfg));
+    setupRun(currentType, currentConfig);
+    show("screen-run");
+  });
+
+  /* ===================== NEW-CARD LINK (from the notification) ===================== */
+  var VALID_CARD = /^[^\/\\]+\.(png|jpe?g|webp|gif|avif)$/i;
+
+  function openCardByName(name){
+    if(!name || !VALID_CARD.test(name)) return;
+    if(cardList.indexOf(name) === -1){
+      cardList.push(name);
+      cardList.sort(function(a,b){ return a.localeCompare(b); });
+      cacheCards(cardList);
+    }
+    setSelectedCard(name);
+    openCardOnly();
+    lastListCheck = 0;
+    revalidateCards();
+  }
+  window.__fdfOpenCard = openCardByName;
+
+  function handleLaunchLink(){
+    var m = location.search.match(/[?&]card=([^&]+)/);
+    if(!m) return;
+    var name = null;
+    try{ name = decodeURIComponent(m[1].replace(/\+/g, " ")); }catch(e){}
+    // Drop the parameter so a later reload doesn't jump back to this card.
+    try{
+      history.replaceState(null, "", location.pathname + (location.search.indexOf("debug") !== -1 ? "?debug" : ""));
     }catch(e){}
-  })();
+    openCardByName(name);
+  }
+
+  // A brand-new card can take a minute to appear on GitHub Pages after the
+  // push, so a card image that 404s is retried for a while instead of
+  // leaving a broken picture on screen.
+  function attachImageRetry(img, noteEl){
+    var tries = 0;
+    img.addEventListener("load", function(){
+      tries = 0;
+      if(noteEl) noteEl.style.display = "none";
+    });
+    img.addEventListener("error", function(){
+      if(!selectedCard) return;
+      if(tries >= 10){
+        if(noteEl){ noteEl.textContent = "Couldn\u2019t load this card. Check the connection and try again."; noteEl.style.display = ""; }
+        return;
+      }
+      tries++;
+      if(noteEl){ noteEl.textContent = "Loading card\u2026 new cards can take a minute to appear."; noteEl.style.display = ""; }
+      setTimeout(function(){
+        if(selectedCard) img.src = cardUrl(selectedCard) + "?r=" + Date.now();
+      }, 3000);
+    });
+  }
+  attachImageRetry(el("cardonly-img"), el("cardonly-note"));
+  attachImageRetry(el("card-img"), null);
+
+  /* ===================== OFFLINE CACHE ===================== */
+  // The same service-worker file that handles push (OneSignalSDKWorker.js)
+  // also keeps the app shell and the card images in a cache, so a Wi-Fi
+  // hiccup mid-workout doesn't blank anything. Registering the identical
+  // script + scope that OneSignal uses is a harmless no-op when it's already
+  // there, and means TVs/desktops that never enable alerts get caching too.
+  function registerCacheWorker(){
+    if(!("serviceWorker" in navigator)) return;
+    var base = location.pathname.replace(/[^/]*$/, "");
+    try{
+      navigator.serviceWorker.register(base + "OneSignalSDKWorker.js", { scope: base }).catch(function(){});
+    }catch(e){}
+  }
+  window.addEventListener("load", registerCacheWorker);
+
+  var warmTimer = null;
+  function warmCardCache(){
+    if(!("serviceWorker" in navigator) || !cardList.length) return;
+    clearTimeout(warmTimer);
+    // Wait a few seconds so this never competes with the screen drawing.
+    warmTimer = setTimeout(function(){
+      navigator.serviceWorker.ready.then(function(reg){
+        if(reg && reg.active){
+          reg.active.postMessage({ type:"precache-cards", urls: cardList.map(cardUrl).concat(cardList.map(thumbUrl)) });
+        }
+      }).catch(function(){});
+    }, 5000);
+  }
 
   /* ===================== TV REMOTE NAVIGATION ===================== */
   // Samsung/Tizen and several other TV browsers have unreliable built-in
@@ -1693,42 +2350,6 @@
     line.textContent = msg;
     dbgEl.insertBefore(line, dbgEl.firstChild);
     while(dbgEl.childNodes.length > 20) dbgEl.removeChild(dbgEl.lastChild);
-  }
-
-  // Pinned (non-scrolling) panel showing the device's *actual current*
-  // OneSignal subscription — the dashboard's Audience list can show stale
-  // entries from earlier remove/re-add cycles, so this reads it straight
-  // from the live SDK instead. Text is selectable so it can be copied
-  // directly off the phone, overriding the app-wide user-select:none.
-  if(DEBUG){
-    var pushDbg = document.createElement("div");
-    pushDbg.style.cssText = "position:fixed;top:0;left:0;right:0;z-index:99999;"+
-      "background:rgba(0,0,0,.92);color:#0f0;font:13px/1.45 monospace;"+
-      "padding:8px 10px;white-space:pre-wrap;border-bottom:2px solid #0f0;"+
-      "-webkit-user-select:text;user-select:text;";
-    pushDbg.textContent = "push: loading\u2026";
-    document.body.appendChild(pushDbg);
-
-    function updatePushDebug(){
-      var perm = (window.Notification && Notification.permission) || "unknown";
-      var text = "Notification.permission: " + perm;
-      if(window.OneSignalDeferred){
-        window.OneSignalDeferred.push(function(OneSignal){
-          try{
-            var sub = OneSignal.User.PushSubscription;
-            text += "\nSubscription id: " + (sub.id || "(none yet)");
-            text += "\noptedIn: " + sub.optedIn;
-          }catch(e){
-            text += "\n(OneSignal read error: " + e + ")";
-          }
-          pushDbg.textContent = text;
-        });
-      } else {
-        pushDbg.textContent = text + "\nOneSignalDeferred not found";
-      }
-    }
-    updatePushDebug();
-    setInterval(updatePushDebug, 3000);
   }
 
   function activeScreen(){ return document.querySelector(".screen.active"); }
@@ -1808,10 +2429,12 @@
   }
 
   function goBack(){
-    if(el("screen-run").classList.contains("active")){ stopRun(); show("screen-select"); return true; }
+    if(el("screen-run").classList.contains("active")){ logRun(false); stopRun(); show("screen-select"); return true; }
     if(el("screen-config").classList.contains("active")){ show("screen-select"); return true; }
     if(el("screen-cards").classList.contains("active")){ show(cardPickerReturn); return true; }
     if(el("screen-cardonly").classList.contains("active")){ show("screen-select"); return true; }
+    if(el("screen-roulette").classList.contains("active")){ show("screen-select"); return true; }
+    if(el("screen-history").classList.contains("active")){ show("screen-select"); return true; }
     return false;
   }
 
@@ -1924,6 +2547,8 @@
     else if(screenId === "screen-cards")  pick = "#card-grid .card-choice";
     else if(screenId === "screen-cardonly") pick = selectedCard ? "#btn-cardonly-exit" : "#btn-cardonly-pick";
     else if(screenId === "screen-run")    pick = "#btn-toggle";
+    else if(screenId === "screen-roulette") pick = "#btn-roulette-go";
+    else if(screenId === "screen-history")  pick = "#btn-history-back";
     setTimeout(function(){
       var target = pick ? document.querySelector(pick) : null;
       if(!target){ var l = collectNav(); target = l.length ? l[0] : null; }
@@ -1940,6 +2565,15 @@
   });
 
   focusFirst("screen-select");
+  handleLaunchLink();
+  loadCardTimers();
+
+  // ?debug on the URL: show what this device actually reports.
+  dlog("v20  viewport " + window.innerWidth + "x" + window.innerHeight +
+       "  dpr " + (window.devicePixelRatio || 1) + (IS_TV ? "  TV mode" : "") + (IS_IOS ? "  iOS" : ""));
+  dlog("app width " + Math.round(el("app").getBoundingClientRect().width) + "px" +
+       "   wakeLock API: " + (("wakeLock" in navigator) ? "yes" : "no") +
+       "   serviceWorker: " + (("serviceWorker" in navigator) ? "yes" : "no"));
 
   /* ===================== PUSH NOTIFICATIONS (new card alerts) ===================== */
   (function(){
@@ -1952,6 +2586,7 @@
     // visible (and inert, since the OS has already answered) even after
     // permission was actually granted.
     function refreshButton(){
+      if(IS_TV){ btn.style.display = "none"; return; }   // a TV can't take push alerts
       try{
         var granted = window.Notification && Notification.permission === "granted";
         btn.style.display = granted ? "none" : "";
