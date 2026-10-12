@@ -1,12 +1,17 @@
-name: Make card thumbnails
+name: Card housekeeping
 
-# Whenever a workout card is added or changed, make a small preview copy in
-# cards/thumbs/. The app uses these for the card picker, which is much lighter
-# on a slow TV than decoding every full-size card. If a thumbnail is missing,
-# the app just falls back to the full card, so nothing breaks.
+# Whenever a workout card is added or changed, this does two chores and saves
+# the results back to the repo in one commit:
+#   1. Makes a small preview copy in cards/thumbs/. The app uses these for the
+#      card picker, which is much lighter on a slow TV than decoding every
+#      full-size card. (If a thumbnail is missing, the app falls back to the
+#      full card, so nothing breaks.)
+#   2. Adds a starter line to card-timers.json for any card that doesn't have
+#      one yet ("for time"). Edit that line if the card needs a different
+#      timer. Existing lines are never touched.
 #
-# To build thumbnails for all your existing cards the first time, open the
-# Actions tab, choose "Make card thumbnails", and click "Run workflow".
+# To run it by hand (for example to catch up on old cards), open the Actions
+# tab, choose "Card housekeeping", and click "Run workflow".
 
 on:
   push:
@@ -28,7 +33,7 @@ concurrency:
 
 jobs:
   thumbs:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -78,15 +83,63 @@ jobs:
                   print("removed:", name)
           PY
 
-      - name: Commit thumbnails
+      - name: Add starter timers for new cards
+        id: timers
+        run: |
+          python3 - <<'PY'
+          import json, os, re
+
+          EXTS = (".png", ".jpg", ".jpeg", ".webp", ".gif", ".avif")
+          PATH = "card-timers.json"
+
+          def key(name):
+              # must match the app: lowercase, anything that isn't a letter or digit becomes a dash
+              stem = os.path.splitext(name)[0].lower()
+              return re.sub(r"^-+|-+$", "", re.sub(r"[^a-z0-9]+", "-", stem))
+
+          text = open(PATH, encoding="utf-8").read() if os.path.exists(PATH) else "{\n}\n"
+          existing = json.loads(text)          # stops here if the file has a typo, rather than overwriting it
+
+          added = []
+          for name in sorted(os.listdir("cards"), key=str.lower):
+              if not os.path.isfile(os.path.join("cards", name)) or not name.lower().endswith(EXTS):
+                  continue
+              k = key(name)
+              if k and k not in existing and k not in [a[0] for a in added]:
+                  added.append((k, name))
+
+          if added:
+              body = text.rstrip()
+              assert body.endswith("}")
+              body = body[:-1].rstrip()
+              lines = ['  "%s": { "type": "fortime" }' % k for k, _ in added]
+              sep = "" if body.endswith("{") else ("" if body.endswith(",") else ",")
+              text = body + sep + "\n\n" + ",\n".join(lines) + "\n}\n"
+              json.loads(text)                 # make sure what we wrote is still valid JSON
+              open(PATH, "w", encoding="utf-8").write(text)
+              for k, name in added:
+                  print("starter timer added:", k, "(from", name + ")")
+          else:
+              print("Every card already has a timer line.")
+
+          with open(os.environ["GITHUB_OUTPUT"], "a") as out:
+              out.write("added=" + ", ".join(k for k, _ in added) + "\n")
+          PY
+
+      - name: Commit changes
+        env:
+          ADDED: ${{ steps.timers.outputs.added }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add cards/thumbs
+          [ -f card-timers.json ] && git add card-timers.json
           if git diff --cached --quiet; then
-            echo "Thumbnails already up to date."
+            echo "Thumbnails and timers already up to date."
           else
-            git commit -m "Update card thumbnails [skip ci]"
+            MSG="Update card thumbnails"
+            if [ -n "$ADDED" ]; then MSG="$MSG and add starter timers for: $ADDED"; fi
+            git commit -m "$MSG"
             git pull --rebase origin "${GITHUB_REF_NAME}"
             git push origin "HEAD:${GITHUB_REF_NAME}"
           fi
