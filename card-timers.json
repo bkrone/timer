@@ -1,5 +1,13 @@
 {
-  "_readme": "Suggested timer for each workout card. The key is the card's file name in lowercase with dashes (Hell_s_Bells.jpg -> hell-s-bells). type is one of: fortime (optional capMin), amrap (minutes), emom (totalMin, intervalMin), interval (work, rest, rounds). Cards with no entry still work, they just don't get a suggested timer.",
+  "_readme": "Suggested timer for each workout card. The key is the card's file name in lowercase with dashes (Hell_s_Bells.jpg -> hell-s-bells). JSON has no comments, so the examples below live under keys that start with an underscore, which the app ignores: copy one, rename the key to your card, and change the numbers. New cards get a 'for time' line added automatically; edit it if the card needs a different timer.",
+
+  "_example-for-time": { "type": "fortime" },
+  "_example-for-time-with-a-cap": { "type": "fortime", "capMin": 20 },
+  "_example-amrap": { "type": "amrap", "minutes": 15 },
+  "_example-emom": { "type": "emom", "totalMin": 30, "intervalMin": 1 },
+  "_example-emom-every-2-minutes": { "type": "emom", "totalMin": 20, "intervalMin": 2 },
+  "_example-interval-tabata": { "type": "interval", "work": 20, "rest": 10, "rounds": 8 },
+  "_example-interval-repeated-in-rounds": { "type": "interval", "work": 20, "rest": 10, "rounds": 6, "sets": 5, "restBetweenSec": 90 },
 
   "full-body-forge": { "type": "fortime" },
   "instant-regret": { "type": "fortime" },
@@ -16,8 +24,8 @@
   "limb-reaper": { "type": "fortime" },
   "upper-body-assault": { "type": "fortime" },
 
-  "the-smoke-show": { "type": "interval", "work": 20, "rest": 10, "rounds": 6 },
-  "hell-s-bells": { "type": "interval", "work": 20, "rest": 10, "rounds": 6 },
+  "the-smoke-show": { "type": "interval", "work": 20, "rest": 10, "rounds": 6, "sets": 5, "restBetweenSec": 90 },
+  "hell-s-bells": { "type": "interval", "work": 20, "rest": 10, "rounds": 6, "sets": 5, "restBetweenSec": 90 },
 
   "abc": { "type": "emom", "totalMin": 30, "intervalMin": 1 }
 }

@@ -663,6 +663,40 @@
   body.tv *{transition:none !important; animation:none !important;}
   body.tv .nav-focus{box-shadow:0 0 0 4px var(--accent) !important;}
 
+  /* ---------- multi-round workouts: "Round 2 of 5" ---------- */
+  .set-label{
+    color:var(--accent);
+    font-weight:800;
+    letter-spacing:.08em;
+    text-transform:uppercase;
+    font-size:clamp(.95rem,2.8vw,1.25rem);
+    margin-bottom:.35em;
+  }
+  body.split .set-label{font-size:clamp(.85rem, 3.4vh, 1.2rem); margin-bottom:.2em;}
+
+  /* ---------- rest between rounds: 1:00 / 1:30 / 2:00 / Manual ---------- */
+  .rest-picker{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:.45em;
+    margin:.2em 0 .9em;
+  }
+  .rest-label{color:var(--muted); font-size:.78rem; letter-spacing:.06em; text-transform:uppercase;}
+  .rest-chips{display:flex; gap:8px;}
+  .rest-chip{
+    background:transparent;
+    border:1px solid var(--line);
+    color:var(--fg);
+    border-radius:999px;
+    padding:.55em 1em;
+    font:inherit;
+    font-size:.9rem;
+    font-weight:600;
+    cursor:pointer;
+  }
+  .rest-chip.on{border-color:var(--accent); color:var(--accent);}
+
   /* ---------- card-only: loading note ---------- */
   .cardonly-note{
     text-align:center;
@@ -847,6 +881,7 @@
       <button class="ctrl-btn" id="btn-hist-clear">Clear log</button>
     </div>
     <div class="hist-list" id="hist-list"></div>
+    <div class="hist-more" id="app-version"></div>
   </section>
 
   <!-- ===================== RUN SCREEN ===================== -->
@@ -869,11 +904,22 @@
 
       <div class="timer-col">
         <div class="run-meta">
+          <div class="set-label" id="set-label" style="display:none;"></div>
           <div class="round-label" id="round-label">&nbsp;</div>
           <div class="phase-label neutral" id="phase-label">READY</div>
           <div class="time-display" id="time-display">00:00</div>
           <div class="cap-flag" id="cap-flag">TIME CAP</div>
           <div class="progress-track" id="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
+        </div>
+
+        <div class="rest-picker" id="rest-picker" style="display:none;">
+          <div class="rest-label">Rest between rounds</div>
+          <div class="rest-chips" id="rest-chips">
+            <button class="rest-chip" data-rest="60">1:00</button>
+            <button class="rest-chip" data-rest="90">1:30</button>
+            <button class="rest-chip" data-rest="120">2:00</button>
+            <button class="rest-chip" data-rest="0">Manual</button>
+          </div>
         </div>
 
         <div class="run-controls">
@@ -900,6 +946,7 @@
   if(/[?&]notv(&|$)/.test(location.search)) IS_TV = false;
   var IS_IOS = /iPad|iPhone|iPod/.test(UA) || (/Macintosh/.test(UA) && navigator.maxTouchPoints > 1);
   if(IS_TV) document.body.classList.add("tv");
+  var APP_VERSION = "v22";   // shown at the bottom of the History screen
 
   /* ===================== CONSTANTS ===================== */
   var TYPES = [
@@ -1121,6 +1168,17 @@
   var runDone = false;       // workout finished (stops keep-awake)
   var runStartedAt = 0;      // when the real timer began (0 = not started)
   var runLogged = false;     // this run already written to the log
+  // Multi-round workouts (a card timer with "sets": 5): you run the same timer
+  // several times with a rest in between, so the app keeps count.
+  var setTotal = 1;          // rounds in this workout (1 = a normal timer)
+  var setIndex = 1;          // the round being run, or the next one to run
+  var setSecs = 0;           // timed seconds from rounds already finished
+  var allSetsDone = false;
+  var sessionLogged = false;
+  // Rest between rounds (a countdown that starts the next round by itself).
+  var restChoice = 90;       // seconds; 0 = "Manual": wait for a tap
+  var restActive = false, restPaused = false, restTimer = null;
+  var restStartedAt = 0, restEndsAt = 0, restPausedLeft = 0, restPausedAt = 0, restTotalSec = 0, restLastShown = -1;
 
   /* ===================== BUILD SELECT GRID ===================== */
   var grid = el("type-grid");
@@ -1140,8 +1198,8 @@
   })();
 
   el("btn-back-to-select").addEventListener("click", function(){ show("screen-select"); });
-  el("btn-exit").addEventListener("click", function(){ logRun(false); stopRun(true); show("screen-select"); });
-  el("btn-exit-bottom").addEventListener("click", function(){ logRun(false); stopRun(true); show("screen-select"); });
+  el("btn-exit").addEventListener("click", function(){ endWorkout(); stopRun(true); show("screen-select"); });
+  el("btn-exit-bottom").addEventListener("click", function(){ endWorkout(); stopRun(true); show("screen-select"); });
 
   /* ===================== CONFIG SCREEN BUILDERS ===================== */
   function makeStepper(step, min, max, initialValue, unitLabel, extraClass){
@@ -1366,7 +1424,7 @@
 
   el("btn-start").addEventListener("click", function(){
     saveCfg(currentType, currentConfig);
-    setupRun(currentType, currentConfig);
+    beginWorkout(currentType, currentConfig);
     show("screen-run");
   });
 
@@ -1393,7 +1451,135 @@
   }
 
   /* ===================== SETUP / RUN ===================== */
+  function resetSets(){ setIndex = 1; setSecs = 0; allSetsDone = false; sessionLogged = false; }
+
+  /* ----- rest between rounds ----- */
+  function updateRestChips(){
+    var chips = el("rest-chips").querySelectorAll(".rest-chip");
+    for(var i = 0; i < chips.length; i++){
+      chips[i].classList.toggle("on", parseInt(chips[i].getAttribute("data-rest"), 10) === restChoice);
+    }
+  }
+  function cancelRest(){
+    if(restTimer){ clearInterval(restTimer); restTimer = null; }
+    if(restActive){
+      restActive = false; restPaused = false;
+      el("btn-finish").style.display = "none";
+      el("btn-finish").textContent = "Finish";
+      el("screen-run").classList.remove("phase-rest");
+    }
+  }
+  function showRest(left){
+    var ready = left <= PRESTART_SECONDS;
+    el("phase-label").textContent = restPaused ? "PAUSED" : (ready ? "GET READY" : "REST");
+    el("phase-label").className = "phase-label " + (ready ? "neutral" : "rest");
+    el("time-display").textContent = ready ? String(Math.max(left, 0)) : fmt(left);
+    el("btn-toggle").textContent = ready ? "Start now" : "Skip rest";
+    var pct = (1 - left / Math.max(1, restTotalSec)) * 100;
+    el("progress-fill").style.width = Math.min(100, Math.max(0, pct)) + "%";
+    el("progress-fill").style.background = "var(--rest)";
+  }
+  function restTick(){
+    if(!restActive || restPaused) return;
+    var left = Math.ceil((restEndsAt - Date.now()) / 1000);
+    if(left <= 0){
+      cancelRest();
+      Sound.workStart();
+      startRun();                      // the next round begins by itself
+      return;
+    }
+    if(left !== restLastShown){
+      restLastShown = left;
+      showRest(left);
+      if(left <= PRESTART_SECONDS){ if(left <= 3) Sound.countBeep(); else Sound.tick(); }
+    }
+  }
+  function beginRest(){
+    restActive = true; restPaused = false;
+    restTotalSec = restChoice;
+    restStartedAt = Date.now();
+    restEndsAt = restStartedAt + restChoice * 1000;
+    restLastShown = -1;
+    el("screen-run").classList.remove("phase-work");
+    el("screen-run").classList.add("phase-rest");
+    el("round-label").innerHTML = "&nbsp;";
+    el("btn-toggle").classList.remove("running");
+    el("btn-finish").textContent = "Pause";
+    el("btn-finish").style.display = "";
+    restTick();
+    restTimer = setInterval(restTick, 200);
+  }
+  function toggleRestPause(){
+    if(!restActive) return;
+    if(!restPaused){
+      restPausedLeft = Math.max(0, restEndsAt - Date.now());
+      restPausedAt = Date.now();
+      restPaused = true;
+      el("btn-finish").textContent = "Resume";
+      el("phase-label").textContent = "PAUSED";
+    } else {
+      restPaused = false;
+      restStartedAt += Date.now() - restPausedAt;     // time spent paused doesn't count as rested
+      restEndsAt = Date.now() + restPausedLeft;
+      restLastShown = -1;
+      el("btn-finish").textContent = "Pause";
+      restTick();
+    }
+  }
+  // "Skip rest" goes to the usual 10-second get-ready; during get-ready it starts right now.
+  function skipRest(){
+    var left = restPaused ? Math.ceil(restPausedLeft / 1000) : Math.ceil((restEndsAt - Date.now()) / 1000);
+    var ready = left <= PRESTART_SECONDS;
+    cancelRest();
+    if(ready){ Sound.workStart(); startRun(); } else { startPreCountdown(); }
+  }
+  // Back to "tap when you're ready" between rounds.
+  function manualWait(){
+    el("phase-label").textContent = "DONE";
+    el("phase-label").className = "phase-label neutral";
+    el("time-display").textContent = fmt(0);
+    el("btn-toggle").textContent = "Start round " + setIndex;
+    el("btn-toggle").classList.remove("running");
+    el("progress-fill").style.width = "100%";
+    updateSetLabel("complete");
+  }
+  el("rest-chips").addEventListener("click", function(e){
+    var t = e.target;
+    while(t && t !== this && !(t.classList && t.classList.contains("rest-chip"))) t = t.parentNode;
+    if(!t || t === this) return;
+    restChoice = parseInt(t.getAttribute("data-rest"), 10);
+    updateRestChips();
+    if(!restActive || restPaused) return;
+    if(restChoice === 0){ cancelRest(); manualWait(); return; }
+    // change the length of the rest that's already running
+    restTotalSec = restChoice;
+    restEndsAt = Math.max(Date.now() + 1000, restStartedAt + restChoice * 1000);
+    restLastShown = -1;
+    restTick();
+  });
+  // The three ways a workout begins (timer screen, a card's own timer, roulette).
+  function beginWorkout(type, cfg){
+    setTotal = (type === "interval" && cfg && cfg.sets > 1) ? Math.round(cfg.sets) : 1;
+    resetSets();
+    if(setTotal > 1) restChoice = (cfg && typeof cfg.restSec === "number") ? cfg.restSec : 90;
+    setupRun(type, cfg);
+  }
+  // "ROUND 2 OF 5" above the timer; blank for a normal single timer.
+  function updateSetLabel(state){
+    el("rest-picker").style.display = (setTotal > 1) ? "" : "none";
+    updateRestChips();
+    var b = el("set-label");
+    if(setTotal <= 1){ b.style.display = "none"; b.textContent = ""; return; }
+    var t;
+    if(state === "all") t = "All " + setTotal + " rounds done";
+    else if(state === "complete") t = "Round " + (setIndex - 1) + " of " + setTotal + " complete";
+    else t = "Round " + setIndex + " of " + setTotal;
+    b.textContent = t;
+    b.style.display = "";
+  }
+
   function setupRun(type, cfg){
+    cancelRest();
     running = false; paused = false; pausedAccum = 0; lastPhaseIdx = -1; lastWholeSecond = -1;
     capFired = false; finished = false; finalElapsed = 0;
     runDone = false; runStartedAt = 0; runLogged = false;
@@ -1442,19 +1628,27 @@
     }
     el("progress-fill").style.width = "0%";
     el("progress-fill").style.background = "var(--fg)";
+    updateSetLabel();
     syncAwake();
   }
 
   el("btn-toggle").addEventListener("click", function(){
+    if(restActive){ skipRest(); return; }          // during a rest this button is "Skip rest" / "Start now"
     if(finished || preStarting) return;
     if(!running){ startPreCountdown(); } else if(!paused){ pauseRun(); } else { resumeRun(); }
   });
   el("btn-reset").addEventListener("click", function(){
-    logRun(false);
+    if(setTotal > 1){
+      if(allSetsDone) resetSets();     // all rounds were finished: start a fresh cycle
+      // a round cut short with Reset is simply not counted
+    } else {
+      logRun(false);
+    }
     if(preStartTimer){ clearInterval(preStartTimer); preStartTimer=null; preStarting=false; }
     setupRun(currentType, currentConfig);
   });
   el("btn-finish").addEventListener("click", function(){
+    if(restActive){ toggleRestPause(); return; }   // during a rest this button is Pause / Resume
     if(!running) return;
     finalElapsed = getElapsed();
     finished = true;
@@ -1476,6 +1670,8 @@
   }
 
   function startPreCountdown(){
+    if(allSetsDone) resetSets();
+    updateSetLabel();       // e.g. "Round 3 of 5" the moment you tap "Start round 3"
     preStarting = true;
     syncAwake();   // inside the tap, so the keep-awake video is allowed to start
     var n = PRESTART_SECONDS;
@@ -1507,6 +1703,7 @@
     runStartedAt = startTime;
     runLogged = false;
     runDone = false;
+    updateSetLabel();
     syncAwake();
     el("btn-toggle").textContent = "Pause";
     el("btn-toggle").classList.add("running");
@@ -1607,7 +1804,7 @@
       el("time-display").textContent = fmt(remainingInPhase);
 
       if(ph.round){
-        el("round-label").textContent = "Round "+ph.round+" of "+cfgRounds();
+        el("round-label").textContent = (setTotal > 1 ? "Exercise " : "Round ")+ph.round+" of "+cfgRounds();
       } else if(currentType==="emom"){
         el("round-label").innerHTML = "&nbsp;";
       }
@@ -1633,13 +1830,18 @@
   function finishNoInput(){
     running = false;
     if(rafId) cancelAnimationFrame(rafId);
-    runDone = true;
+    var more = setTotal > 1 && setIndex < setTotal;
     logRun(true);
+    if(more) setIndex++;
+    else if(setTotal > 1) allSetsDone = true;
+    runDone = !more;              // between rounds the screen stays awake
     syncAwake();
     el("phase-label").textContent = "DONE";
     el("phase-label").className = "phase-label neutral";
-    el("btn-toggle").textContent = "Done";
+    el("btn-toggle").textContent = more ? ("Start round " + setIndex) : "Done";
+    updateSetLabel(more ? "complete" : (setTotal > 1 ? "all" : undefined));
     Sound.horn();
+    if(more && restChoice > 0) beginRest();
   }
 
   /* ===================== WORKOUT CARDS ===================== */
@@ -1927,11 +2129,15 @@
   function lenLabel(min){
     return (min >= 1 && min === Math.floor(min)) ? (min + " min") : (Math.round(min*60) + "s");
   }
-  function describeRun(type, cfg){
+  function describeRun(type, cfg, doneSets){
     cfg = cfg || {};
     if(type === "amrap") return "AMRAP " + cfg.minutes + " min";
     if(type === "emom") return "EMOM " + cfg.totalMin + " min, every " + lenLabel(cfg.intervalMin);
-    if(type === "interval") return cfg.work + "/" + cfg.rest + " \u00D7 " + cfg.rounds;
+    if(type === "interval"){
+      var base = cfg.work + "/" + cfg.rest + " \u00D7 " + cfg.rounds;
+      if(cfg.sets > 1) base += ", " + (typeof doneSets === "number" ? (doneSets + " of " + cfg.sets) : cfg.sets) + " rounds";
+      return base;
+    }
     if(type === "plank") return "Plank ladder";
     if(type === "fortime") return "For time" + (cfg.hasCap ? " (" + cfg.capMin + " min cap)" : "");
     return String(type);
@@ -1941,26 +2147,57 @@
     if(phases.length) return phases.reduce(function(s,p){ return s + p.duration; }, 0);
     return 0;
   }
-  // completed = ran to the end (or For-time Finish); otherwise it was cut short.
-  function logRun(completed, secsOverride){
-    if(runLogged || !runStartedAt) return;
-    var secs;
-    if(typeof secsOverride === "number") secs = secsOverride;
-    else if(completed && plannedSeconds()) secs = plannedSeconds();
-    else secs = (running || paused) ? getElapsed() : 0;
-    secs = Math.max(0, Math.round(secs));
-    runLogged = true;
-    if(!completed && secs < LOG_MIN_SECONDS) return;
+  function pushLogEntry(secs, completed, doneSets){
     var list = loadLog();
     list.push({
       t: Date.now(),
       type: currentType,
-      label: describeRun(currentType, currentConfig),
+      label: describeRun(currentType, currentConfig, doneSets),
       card: (currentType === "plank") ? null : selectedCard,
       secs: secs,
       done: !!completed
     });
     saveLog(list);
+  }
+  // completed = ran to the end (or For-time Finish); otherwise it was cut short.
+  // A multi-round workout (e.g. 5 Tabata rounds) is logged ONCE for the whole
+  // thing, not once per round, so the log counts workouts, not rounds.
+  function logRun(completed, secsOverride){
+    var multi = setTotal > 1;
+    var live = !runLogged && runStartedAt;
+    var secs = 0;
+    if(live){
+      if(typeof secsOverride === "number") secs = secsOverride;
+      else if(completed && plannedSeconds()) secs = plannedSeconds();
+      else secs = (running || paused) ? getElapsed() : 0;
+      secs = Math.max(0, Math.round(secs));
+    }
+    if(!multi){
+      if(!live) return;
+      runLogged = true;
+      if(!completed && secs < LOG_MIN_SECONDS) return;
+      pushLogEntry(secs, completed, null);
+      return;
+    }
+    if(live){
+      runLogged = true;
+      if(completed){ setSecs += secs; secs = 0; }
+    }
+    if(completed && setIndex < setTotal) return;   // a middle round: the workout isn't over
+    if(sessionLogged) return;
+    sessionLogged = true;
+    var total = Math.round(setSecs + (completed ? 0 : secs));
+    var wholeThing = completed && setIndex >= setTotal;
+    if(!wholeThing && total < LOG_MIN_SECONDS) return;
+    pushLogEntry(total, wholeThing, wholeThing ? null : setIndex - 1);
+  }
+  // Leaving the run screen: log whatever happened, then forget the round count.
+  function endWorkout(){
+    cancelRest();
+    logRun(false);
+    setTotal = 1;
+    resetSets();
+    updateSetLabel();
   }
 
   function whenLabel(t){
@@ -2097,7 +2334,10 @@
     if(t.type === "interval"){
       var w = posNum(t.work), ro = posNum(t.rounds), r = parseFloat(t.rest);
       if(!isFinite(r) || r < 0) r = 0;
-      return (w && ro) ? { type:"interval", cfg:{ work:w, rest:r, rounds:ro } } : null;
+      var st = parseInt(t.sets, 10), rb = parseInt(t.restBetweenSec, 10);
+      return (w && ro) ? { type:"interval", cfg:{ work:w, rest:r, rounds:ro,
+        sets:(isFinite(st) && st > 1) ? st : 1,
+        restSec:(isFinite(rb) && rb >= 0 && rb <= 600) ? rb : 90 } } : null;
     }
     if(t.type === "fortime"){
       var cap = posNum(t.capMin);
@@ -2124,7 +2364,7 @@
     if(!def) return;
     currentType = def.type;
     currentConfig = def.cfg;
-    setupRun(currentType, currentConfig);
+    beginWorkout(currentType, currentConfig);
     show("screen-run");
   });
   function setCardTimers(obj){
@@ -2227,7 +2467,7 @@
     if(roulette.card) setSelectedCard(roulette.card);
     currentType = roulette.type;
     currentConfig = JSON.parse(JSON.stringify(roulette.cfg));
-    setupRun(currentType, currentConfig);
+    beginWorkout(currentType, currentConfig);
     show("screen-run");
   });
 
@@ -2429,7 +2669,7 @@
   }
 
   function goBack(){
-    if(el("screen-run").classList.contains("active")){ logRun(false); stopRun(); show("screen-select"); return true; }
+    if(el("screen-run").classList.contains("active")){ endWorkout(); stopRun(); show("screen-select"); return true; }
     if(el("screen-config").classList.contains("active")){ show("screen-select"); return true; }
     if(el("screen-cards").classList.contains("active")){ show(cardPickerReturn); return true; }
     if(el("screen-cardonly").classList.contains("active")){ show("screen-select"); return true; }
@@ -2567,9 +2807,10 @@
   focusFirst("screen-select");
   handleLaunchLink();
   loadCardTimers();
+  el("app-version").textContent = "First Due Fitness " + APP_VERSION;
 
   // ?debug on the URL: show what this device actually reports.
-  dlog("v20  viewport " + window.innerWidth + "x" + window.innerHeight +
+  dlog(APP_VERSION + "  viewport " + window.innerWidth + "x" + window.innerHeight +
        "  dpr " + (window.devicePixelRatio || 1) + (IS_TV ? "  TV mode" : "") + (IS_IOS ? "  iOS" : ""));
   dlog("app width " + Math.round(el("app").getBoundingClientRect().width) + "px" +
        "   wakeLock API: " + (("wakeLock" in navigator) ? "yes" : "no") +
