@@ -7,7 +7,7 @@
  */
 importScripts("https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.sw.js");
 
-var SHELL_CACHE = "fdf-shell-v22";   // bump this to force a fresh app shell
+var SHELL_CACHE = "fdf-shell-v23";   // bump this to force a fresh app shell
 var IMG_CACHE = "fdf-img-v1";        // card + icon images, kept across versions
 var SCOPE_URL = new URL("./", self.location.href);
 var SHELL_FILES = [

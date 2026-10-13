@@ -207,6 +207,34 @@
     color:var(--muted);
     flex:0 0 auto;
   }
+  /* red "N new" badge on the home screen's card bar, and NEW tags in the picker */
+  .csb-badge{
+    flex:0 0 auto;
+    min-width:1.5em;
+    height:1.5em;
+    padding:0 .45em;
+    border-radius:999px;
+    background:#e5322d;
+    color:#fff;
+    font-size:.8rem;
+    font-weight:800;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+  }
+  .new-pill{
+    position:absolute;
+    top:7px;
+    left:7px;
+    z-index:1;
+    background:#e5322d;
+    color:#fff;
+    font-size:.62rem;
+    font-weight:800;
+    letter-spacing:.06em;
+    padding:.2em .55em;
+    border-radius:999px;
+  }
   .select-sub{
     color:var(--muted);
     font-size:.95rem;
@@ -583,6 +611,7 @@
     .card-grid{grid-template-columns:repeat(10,1fr);}
   }
   .card-choice{
+    position:relative;
     border:1px solid var(--line);
     border-radius:var(--radius);
     padding:10px;
@@ -743,6 +772,15 @@
   .roulette-actions .ctrl-btn{flex:1;}
   .roulette-actions .primary-btn{flex:1.4; width:auto;}
 
+  /* ---------- settings (History screen) ---------- */
+  .hist-settings{margin-top:1.4em; border-top:1px solid var(--line); padding-top:1em;}
+  .hist-settings-title{font-weight:700; margin-bottom:.7em;}
+  .setting-row{display:flex; align-items:center; justify-content:space-between; gap:14px;}
+  .setting-text{min-width:0;}
+  .setting-name{font-weight:600;}
+  .setting-sub{color:var(--muted); font-size:.82rem; margin-top:2px; line-height:1.35;}
+  .setting-btn{flex:0 0 auto; min-width:6.5em; padding:.7em 1.1em;}
+
   /* ---------- workout log ---------- */
   .hist-summary{color:var(--muted); font-size:.95rem; line-height:1.5; margin-bottom:.9em;}
   .hist-actions{display:flex; gap:14px; margin-bottom:.6em;}
@@ -772,7 +810,7 @@
   <!-- ===================== SELECT SCREEN ===================== -->
   <section class="screen active" id="screen-select">
     <div class="topbar">
-      <div class="brand">first due <span class="dot">fitness</span></div>
+      <div class="brand">first due<span class="dot">fitness</span></div>
       <button class="navbtn" id="btn-history">History</button>
     </div>
     <div class="select-title">What are we running?</div>
@@ -783,6 +821,7 @@
         <span class="csb-kicker">Workout card</span>
         <span id="card-select-label">Choose a card</span>
       </span>
+      <span class="csb-badge" id="csb-badge" style="display:none;"></span>
       <span class="csb-chev" aria-hidden="true">&rsaquo;</span>
     </button>
 
@@ -881,6 +920,16 @@
       <button class="ctrl-btn" id="btn-hist-clear">Clear log</button>
     </div>
     <div class="hist-list" id="hist-list"></div>
+    <div class="hist-settings" id="hist-settings">
+      <div class="hist-settings-title">Settings</div>
+      <div class="setting-row">
+        <div class="setting-text">
+          <div class="setting-name">New-card alerts button</div>
+          <div class="setting-sub" id="push-setting-sub"></div>
+        </div>
+        <button class="ctrl-btn setting-btn" id="btn-toggle-push-ui" style="display:none;">Shown</button>
+      </div>
+    </div>
     <div class="hist-more" id="app-version"></div>
   </section>
 
@@ -946,7 +995,27 @@
   if(/[?&]notv(&|$)/.test(location.search)) IS_TV = false;
   var IS_IOS = /iPad|iPhone|iPod/.test(UA) || (/Macintosh/.test(UA) && navigator.maxTouchPoints > 1);
   if(IS_TV) document.body.classList.add("tv");
-  var APP_VERSION = "v22";   // shown at the bottom of the History screen
+  var APP_VERSION = "v23";   // shown at the bottom of the History screen
+
+  // Can this device receive push alerts at all? TVs can't, old iPads/iPhones
+  // (before iOS 16.4) can't, and iOS only allows them for an app that has been
+  // added to the Home Screen. When the answer is no, the "Enable new-card
+  // alerts" button is hidden automatically.
+  function pushSupported(){
+    if(IS_TV) return false;
+    if(!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) return false;
+    if(IS_IOS){
+      var standalone = (navigator.standalone === true) ||
+                       !!(window.matchMedia && window.matchMedia("(display-mode: standalone)").matches);
+      if(!standalone) return false;
+    }
+    return true;
+  }
+  var PUSH_HIDE_KEY = "bell_hide_push";
+  function pushButtonHiddenByUser(){
+    try{ return !!store && store.getItem(PUSH_HIDE_KEY) === "1"; }catch(e){ return false; }
+  }
+  var refreshPushButton = function(){};
 
   /* ===================== CONSTANTS ===================== */
   var TYPES = [
@@ -1141,8 +1210,10 @@
   }
   function el(id){ return document.getElementById(id); }
   function show(id){
+    var prev = document.querySelector(".screen.active");
     document.querySelectorAll(".screen").forEach(function(s){ s.classList.remove("active"); });
     el(id).classList.add("active");
+    if(prev && prev.id === "screen-cards" && id !== "screen-cards") markCardsSeen();
     if(typeof focusFirst === "function") focusFirst(id);
     syncAwake();
   }
@@ -1932,23 +2003,68 @@
   var lastListCheck = 0;
   function revalidateCards(){
     var now = Date.now();
-    if(now - lastListCheck < 600000) return;
+    if(now - lastListCheck < 60000) return;     // at most once a minute (GitHub answers "unchanged" for free)
     lastListCheck = now;
     fetchCardList(function(files){
       if(JSON.stringify(files) === JSON.stringify(cardList)) return;
       cardList = files;
       cacheCards(files);
       warmCardCache();
+      updateNewBadge();
       if(el("screen-cards").classList.contains("active")) renderCardGrid(cardList, "github");
     }, function(){});
   }
   window.addEventListener("online", function(){ lastListCheck = 0; revalidateCards(); });
+  document.addEventListener("visibilitychange", function(){
+    if(document.visibilityState === "visible") revalidateCards();   // e.g. the TV or iPad waking up
+  });
+
+  // Which cards has this device already shown you? Anything newer gets a red
+  // badge on the home screen's card bar and a NEW tag in the picker, until you
+  // leave the picker. (The first time, everything counts as seen.)
+  var SEEN_KEY = "bell_seen_cards";
+  function loadSeen(){
+    if(!store) return null;
+    try{ var v = store.getItem(SEEN_KEY); var a = v ? JSON.parse(v) : null; return Array.isArray(a) ? a : null; }catch(e){ return null; }
+  }
+  function saveSeen(list){
+    if(store){ try{ store.setItem(SEEN_KEY, JSON.stringify(list)); }catch(e){} }
+  }
+  function newCardNames(){
+    var seen = loadSeen();
+    if(!seen) return [];
+    return cardList.filter(function(c){ return seen.indexOf(c) === -1; });
+  }
+  function updateNewBadge(){
+    var n = newCardNames().length, b = el("csb-badge");
+    if(n > 0){
+      b.textContent = String(n);
+      b.title = n + " new card" + (n === 1 ? "" : "s");
+      b.style.display = "";
+    } else {
+      b.style.display = "none";
+    }
+  }
+  function markCardsSeen(){
+    if(cardList.length) saveSeen(cardList.slice());
+    updateNewBadge();
+  }
+  function markCardSeen(name){
+    var seen = loadSeen();
+    if(seen && seen.indexOf(name) === -1){ seen.push(name); saveSeen(seen); }
+    updateNewBadge();
+  }
+  function startSeenTracking(){
+    if(loadSeen() === null && cardList.length) saveSeen(cardList.slice());
+    updateNewBadge();
+  }
 
   function discoverCards(force, done){
     var cached = cachedCards();
     if(cached && cached.length && !force){
       cardList = cached;
       warmCardCache();
+      startSeenTracking();
       done(cardList, "cache");
       revalidateCards();
       return;
@@ -1958,6 +2074,7 @@
       cacheCards(files);
       lastListCheck = Date.now();
       warmCardCache();
+      startSeenTracking();
       done(cardList, "github");
     }, function(){
       var fallback = cached && cached.length ? cached : MANUAL_CARDS.slice();
@@ -2016,7 +2133,9 @@
       return;
     }
 
+    var fresh = newCardNames();
     sub.textContent = list.length + " card" + (list.length===1?"":"s") + " available." +
+      (fresh.length ? " " + fresh.length + " new." : "") +
       (source === "fallback" ? " Offline, showing your saved list." : "");
 
     var none = document.createElement("button");
@@ -2040,6 +2159,12 @@
       var btn = document.createElement("button");
       btn.type = "button";
       btn.className = "card-choice" + (name === selectedCard ? " selected" : "");
+      if(fresh.indexOf(name) !== -1){
+        var pill = document.createElement("span");
+        pill.className = "new-pill";
+        pill.textContent = "NEW";
+        btn.appendChild(pill);
+      }
       var im = document.createElement("img");
       setThumb(im, name);
       im.alt = prettyName(name);
@@ -2283,7 +2408,32 @@
       navigator.clipboard.writeText(text).then(function(){ done(true); }, fallback);
     } else { fallback(); }
   }
-  function openHistory(){ renderHistory(); show("screen-history"); }
+  function renderSettings(){
+    var sub = el("push-setting-sub"), b = el("btn-toggle-push-ui");
+    var perm = "default";
+    try{ if(window.Notification) perm = Notification.permission; }catch(e){}
+    b.style.display = "none";
+    if(!pushSupported()){
+      sub.textContent = "This device can\u2019t receive new-card alerts, so the button is hidden automatically.";
+    } else if(perm === "granted"){
+      sub.textContent = "Alerts are already turned on for this device.";
+    } else if(perm === "denied"){
+      sub.textContent = "Alerts are blocked in this device\u2019s settings, so the button is hidden.";
+    } else {
+      sub.textContent = "The \u201CEnable new-card alerts\u201D button at the bottom of the home screen.";
+      b.textContent = pushButtonHiddenByUser() ? "Hidden" : "Shown";
+      b.style.display = "";
+    }
+  }
+  el("btn-toggle-push-ui").addEventListener("click", function(){
+    if(!store) return;
+    try{
+      if(pushButtonHiddenByUser()) store.removeItem(PUSH_HIDE_KEY); else store.setItem(PUSH_HIDE_KEY, "1");
+    }catch(e){}
+    renderSettings();
+    refreshPushButton();
+  });
+  function openHistory(){ renderHistory(); renderSettings(); show("screen-history"); }
 
   el("btn-history").addEventListener("click", openHistory);
   el("btn-history-back").addEventListener("click", function(){ show("screen-select"); });
@@ -2482,6 +2632,7 @@
       cacheCards(cardList);
     }
     setSelectedCard(name);
+    markCardSeen(name);
     openCardOnly();
     lastListCheck = 0;
     revalidateCards();
@@ -2808,6 +2959,7 @@
   handleLaunchLink();
   loadCardTimers();
   el("app-version").textContent = "First Due Fitness " + APP_VERSION;
+  updateNewBadge();
 
   // ?debug on the URL: show what this device actually reports.
   dlog(APP_VERSION + "  viewport " + window.innerWidth + "x" + window.innerHeight +
@@ -2827,12 +2979,14 @@
     // visible (and inert, since the OS has already answered) even after
     // permission was actually granted.
     function refreshButton(){
-      if(IS_TV){ btn.style.display = "none"; return; }   // a TV can't take push alerts
-      try{
-        var granted = window.Notification && Notification.permission === "granted";
-        btn.style.display = granted ? "none" : "";
-      }catch(e){ btn.style.display = ""; }
+      var perm = "default";
+      try{ if(window.Notification) perm = Notification.permission; }catch(e){}
+      // Hidden when this device can't take alerts, when you've switched the button off
+      // in History > Settings, or when the OS has already answered (allowed or blocked).
+      var hide = !pushSupported() || pushButtonHiddenByUser() || perm === "granted" || perm === "denied";
+      btn.style.display = hide ? "none" : "";
     }
+    refreshPushButton = refreshButton;
 
     refreshButton();
     document.addEventListener("visibilitychange", function(){

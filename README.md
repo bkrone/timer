@@ -76,6 +76,15 @@ the automatic update stops and leaves it alone rather than overwriting it.
   **View card** shows just the card.
 - **History** (top right) lists the workouts that were run on this device, with **Copy as CSV**.
   Each device keeps its own log. The version number is at the bottom of that screen.
+- **History > Settings** controls the **Enable new-card alerts** button at the bottom of the home
+  screen. It is hidden automatically on devices that can't receive alerts (the TV, older iPads, an
+  iPhone or iPad that hasn't been added to the Home Screen), and once alerts are on. On a device that
+  can take alerts you can also switch the button off or on by hand.
+- **New cards show up by themselves.** The app checks the `cards` folder when it opens, whenever the
+  card picker opens, and when a device wakes up (at most once a minute). A card this device hasn't
+  shown you yet gets a red number on the home screen's card bar and a red **NEW** tag in the picker.
+  Both clear when you leave the picker. **Refresh** in the picker is still there if you want to check
+  right now.
 - The screen stays awake while a timer or card is showing.
 - The app keeps the cards and itself on the device, so it still works if the Wi-Fi drops.
 
@@ -100,6 +109,10 @@ the automatic update stops and leaves it alone rather than overwriting it.
   re-added the app to their home screen, they need to tap the enable-alerts button again.
 - **The app seems out of date.** Check the version at the bottom of the History screen, then close the
   app completely and reopen it while online.
+- **A new card isn't showing.** Open the card picker and tap **Refresh**. If it still isn't there,
+  check that the file is in the `cards` folder (not a subfolder) and ends in .jpg, .png, .webp or .gif.
+  GitHub limits how often it answers a shared Wi-Fi network (60 requests an hour), so after a lot of
+  checking the app just keeps showing its saved list until the limit resets.
 - **A card is slow to appear, or the TV is laggy.** Run the housekeeping chores by hand: **Actions >
   Card housekeeping > Run workflow**. It fills in any missing thumbnails and timers.
 - **The TV doesn't fill the screen.** Add `?debug` to the end of the address. It shows the screen size
