@@ -995,7 +995,7 @@
   if(/[?&]notv(&|$)/.test(location.search)) IS_TV = false;
   var IS_IOS = /iPad|iPhone|iPod/.test(UA) || (/Macintosh/.test(UA) && navigator.maxTouchPoints > 1);
   if(IS_TV) document.body.classList.add("tv");
-  var APP_VERSION = "v23";   // shown at the bottom of the History screen
+  var APP_VERSION = "v24";   // shown at the bottom of the History screen
 
   // Can this device receive push alerts at all? TVs can't, old iPads/iPhones
   // (before iOS 16.4) can't, and iOS only allows them for an app that has been
@@ -1076,6 +1076,7 @@
     countBeep: function(){ tone(880,0.12,0.35,0,"sine"); },
     workStart: function(){ tone(1046,0.22,0.4,0,"sine"); },
     restStart: function(){ tone(523,0.22,0.4,0,"sine"); },
+    mark15: function(){ tone(740,0.09,0.22,0,"sine"); },   // soft marker every 15 seconds (plank)
     horn: function(){
       tone(220,0.5,0.5,0,"sawtooth");
       tone(220,0.5,0.5,0.55,"sawtooth");
@@ -1257,7 +1258,17 @@
     var card = document.createElement("button");
     card.className = "type-card";
     card.innerHTML = '<div class="name">'+t.name+'</div><div class="desc">'+t.desc+'</div>';
-    card.addEventListener("click", function(){ openConfig(t.id); });
+    card.addEventListener("click", function(){
+      if(t.id === "plank"){
+        // nothing to configure: go straight to the ready screen
+        currentType = "plank";
+        currentConfig = {};
+        beginWorkout("plank", currentConfig);
+        show("screen-run");
+      } else {
+        openConfig(t.id);
+      }
+    });
     grid.appendChild(card);
   });
   (function(){
@@ -1855,6 +1866,7 @@
       var into = elapsed - acc;
       var remainingInPhase = ph.duration - into;
 
+      var phaseChanged = (idx !== lastPhaseIdx);
       if(idx !== lastPhaseIdx){
         lastPhaseIdx = idx;
         el("screen-run").classList.remove("phase-work","phase-rest");
@@ -1887,6 +1899,9 @@
       if(wholeSec !== lastWholeSecond){
         var remCeil = Math.ceil(remainingInPhase);
         if(remCeil<=3 && remCeil>0 && ph.duration>4) Sound.tick();
+        // plank: a single soft beep at 15, 30, 45... seconds (the hands/elbows
+        // switches at 60, 120 and 150 have their own sounds, and 180 is the horn)
+        if(currentType === "plank" && !phaseChanged && wholeSec > 0 && wholeSec % 15 === 0) Sound.mark15();
       }
     }
 
