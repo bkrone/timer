@@ -72,7 +72,9 @@ the automatic update stops and leaves it alone rather than overwriting it.
 
 - **Pick a card** at the top of the home screen. If it has a timer, a **Start** button appears.
   **Surprise me** in the card picker chooses a random card and uses its own timer.
-- **AMRAP, EMOM, Interval and For time** let you set a timer by hand. **Plank** needs no setup: it
+- **AMRAP, EMOM, Interval and For time** let you set a timer by hand. **Interval** can also repeat as
+  several rounds (up to 6) with an automatic rest of 1:00, 1:30, 2:00 or Manual between them, just like
+  the Tabata cards. **Plank** needs no setup: it
   goes straight to a ready screen for the 3-minute ladder (60 seconds on hands, 60 on elbows, 30 on
   hands, 30 on elbows) with one soft beep every 15 seconds. **View card** shows just the card.
 - **History** (top right) lists the workouts that were run on this device, with **Copy as CSV**.

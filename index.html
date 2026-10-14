@@ -995,7 +995,7 @@
   if(/[?&]notv(&|$)/.test(location.search)) IS_TV = false;
   var IS_IOS = /iPad|iPhone|iPod/.test(UA) || (/Macintosh/.test(UA) && navigator.maxTouchPoints > 1);
   if(IS_TV) document.body.classList.add("tv");
-  var APP_VERSION = "v24";   // shown at the bottom of the History screen
+  var APP_VERSION = "v25";   // shown at the bottom of the History screen
 
   // Can this device receive push alerts at all? TVs can't, old iPads/iPhones
   // (before iOS 16.4) can't, and iOS only allows them for an app that has been
@@ -1455,7 +1455,7 @@
       rI.addEventListener("input", function(){ cfg.rest = parseFloat(rI.value)||0; });
       gC.appendChild(stR.wrap);
 
-      var gD = fieldGroup(fields, "Rounds");
+      var gD = fieldGroup(fields, "Intervals per round");
       var stRo = makeStepper(1, 1, null, saved.rounds || 8);
       var roI = stRo.input;
       roI.addEventListener("input", function(){ cfg.rounds = parseFloat(roI.value)||8; });
@@ -1464,6 +1464,19 @@
       cfg.work = saved.work || 20;
       cfg.rest = saved.rest || 10;
       cfg.rounds = saved.rounds || 8;
+
+      // Repeat the whole timer for several rounds, with a rest between them
+      var gSets = fieldGroup(fields, "Rounds (repeat the timer)");
+      var gRest = null;
+      cfg.sets = (saved.sets > 1) ? Math.min(6, Math.round(saved.sets)) : 1;
+      chipRow(gSets, [1,2,3,4,5,6].map(function(n){ return {label:String(n), value:n}; }), "", cfg.sets,
+        function(v){ cfg.sets = v; if(gRest) gRest.style.display = (v > 1) ? "" : "none"; }, false);
+      gRest = fieldGroup(fields, "Rest between rounds");
+      cfg.restSec = (typeof saved.restSec === "number") ? saved.restSec : 90;
+      chipRow(gRest, [
+        {label:"1:00", value:60}, {label:"1:30", value:90}, {label:"2:00", value:120}, {label:"Manual", value:0}
+      ], "", cfg.restSec, function(v){ cfg.restSec = v; }, false);
+      gRest.style.display = (cfg.sets > 1) ? "" : "none";
     }
 
     else if(typeId === "plank"){
@@ -1887,7 +1900,7 @@
       el("time-display").textContent = fmt(remainingInPhase);
 
       if(ph.round){
-        el("round-label").textContent = (setTotal > 1 ? "Exercise " : "Round ")+ph.round+" of "+cfgRounds();
+        el("round-label").textContent = (setTotal > 1 ? "Interval " : "Round ")+ph.round+" of "+cfgRounds();
       } else if(currentType==="emom"){
         el("round-label").innerHTML = "&nbsp;";
       }
