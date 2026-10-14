@@ -772,6 +772,10 @@
   .roulette-actions .ctrl-btn{flex:1;}
   .roulette-actions .primary-btn{flex:1.4; width:auto;}
 
+  /* ---------- a card with more than one timer option ---------- */
+  .start-sub{display:block; font-size:.78rem; font-weight:500; opacity:.8; margin-top:.15em;}
+  #card-start .ctrl-btn{width:100%; padding:.85em 1em; flex:none;}
+
   /* ---------- settings (History screen) ---------- */
   .hist-settings{margin-top:1.4em; border-top:1px solid var(--line); padding-top:1em;}
   .hist-settings-title{font-weight:700; margin-bottom:.7em;}
@@ -825,7 +829,10 @@
       <span class="csb-chev" aria-hidden="true">&rsaquo;</span>
     </button>
 
-    <button class="primary-btn" id="btn-start-card" style="display:none; margin-bottom:1.1em;"></button>
+    <div id="card-start" style="display:none; flex-direction:column; gap:.6em; margin-bottom:1.1em;">
+      <button class="primary-btn" id="btn-start-card"></button>
+      <div id="card-start-more" style="display:contents;"></div>
+    </div>
 
     <div class="select-sub">Pick a timer type to configure it.</div>
     <div class="type-grid" id="type-grid"></div>
@@ -995,7 +1002,7 @@
   if(/[?&]notv(&|$)/.test(location.search)) IS_TV = false;
   var IS_IOS = /iPad|iPhone|iPod/.test(UA) || (/Macintosh/.test(UA) && navigator.maxTouchPoints > 1);
   if(IS_TV) document.body.classList.add("tv");
-  var APP_VERSION = "v25";   // shown at the bottom of the History screen
+  var APP_VERSION = "v26";   // shown at the bottom of the History screen
 
   // Can this device receive push alerts at all? TVs can't, old iPads/iPhones
   // (before iOS 16.4) can't, and iOS only allows them for an app that has been
@@ -2500,6 +2507,11 @@
   }
   function posNum(v){ v = parseFloat(v); return (isFinite(v) && v > 0) ? v : null; }
   function cleanTimer(t){
+    var r = cleanTimerCore(t);
+    if(r && typeof t.label === "string" && t.label.trim()) r.label = t.label.trim().slice(0, 40);
+    return r;
+  }
+  function cleanTimerCore(t){
     if(!t || typeof t !== "object") return null;
     if(t.type === "amrap"){
       var m = posNum(t.minutes);
@@ -2523,27 +2535,64 @@
     }
     return null;
   }
+  // All the timer options a card offers (up to 4). An entry can be a single
+  // timer or a list; anything that isn't a valid timer is skipped.
+  function cardTimerOptions(filename){
+    var raw = cardTimers[cardKey(filename)];
+    var list = Array.isArray(raw) ? raw : [raw];
+    var out = [];
+    for(var i = 0; i < list.length && out.length < 4; i++){
+      var c = cleanTimer(list[i]);
+      if(c) out.push(c);
+    }
+    return out;
+  }
+  // The card's main (first) option: what Surprise me uses.
   function cardTimerFor(filename){
-    return cleanTimer(cardTimers[cardKey(filename)]);   // a fresh object every call
+    return cardTimerOptions(filename)[0] || null;   // fresh objects every call
   }
   function timerButtonLabel(def){
-    return "Start " + describeRun(def.type, def.cfg).replace(/^For time/, "for time");
+    return "Start " + (def.label ? def.label : describeRun(def.type, def.cfg).replace(/^For time/, "for time"));
   }
-  // On the select screen: one tap starts the selected card's own timer.
-  function updateCardStart(){
-    var b = el("btn-start-card");
-    var def = selectedCard ? cardTimerFor(selectedCard) : null;
-    if(!def){ b.style.display = "none"; return; }
-    b.textContent = timerButtonLabel(def);
-    b.style.display = "";
+  function fillStartButton(b, def){
+    b.textContent = "";
+    var main = document.createElement("span");
+    main.textContent = timerButtonLabel(def);
+    b.appendChild(main);
+    if(def.label){                       // a named option also shows what it is
+      var sub = document.createElement("span");
+      sub.className = "start-sub";
+      sub.textContent = describeRun(def.type, def.cfg);
+      b.appendChild(sub);
+    }
   }
-  el("btn-start-card").addEventListener("click", function(){
-    var def = selectedCard ? cardTimerFor(selectedCard) : null;
-    if(!def) return;
+  function startOption(def){
     currentType = def.type;
     currentConfig = def.cfg;
     beginWorkout(currentType, currentConfig);
     show("screen-run");
+  }
+  // On the select screen: one Start button per timer option the card offers.
+  function updateCardStart(){
+    var box = el("card-start");
+    var opts = selectedCard ? cardTimerOptions(selectedCard) : [];
+    var more = el("card-start-more");
+    more.innerHTML = "";
+    if(!opts.length){ box.style.display = "none"; return; }
+    fillStartButton(el("btn-start-card"), opts[0]);
+    opts.slice(1).forEach(function(opt){
+      var b2 = document.createElement("button");
+      b2.type = "button";
+      b2.className = "ctrl-btn";
+      fillStartButton(b2, opt);
+      b2.addEventListener("click", function(){ startOption(opt); });
+      more.appendChild(b2);
+    });
+    box.style.display = "flex";
+  }
+  el("btn-start-card").addEventListener("click", function(){
+    var def = selectedCard ? cardTimerFor(selectedCard) : null;
+    if(def) startOption(def);
   });
   function setCardTimers(obj){
     if(!obj || typeof obj !== "object") return;

@@ -65,6 +65,23 @@ for 5 rounds with a rest between. The app shows **Round 2 of 5** above the timer
 - The log counts only the work time and records the whole workout once, when all the rounds are
   done.
 
+**A card with more than one timer.** Some workouts can be run more than one way (Tree Fiddy is a for-time
+workout, but the station sometimes does it Tabata style). Give the card a list of options in square
+brackets. The app shows one Start button per option on the home screen, and the first option is the
+main one (it's the big button, and **Surprise me** uses it):
+
+```json
+"tree-fiddy": [
+  { "type": "fortime" },
+  { "type": "interval", "work": 20, "rest": 10, "rounds": 7, "sets": 5, "restBetweenSec": 90, "label": "Tabata style" }
+]
+```
+
+The optional `"label"` names an option on its button (the button also shows the numbers underneath).
+Without a label, the button just describes the timer. A card can have up to 4 options, and a card with
+one timer keeps working exactly as before. New cards still get a single "for time" line automatically,
+so turn it into a list when you want a second option.
+
 Keep the commas between lines, and don't put a comma after the last line. If the file has a typo,
 the automatic update stops and leaves it alone rather than overwriting it.
 

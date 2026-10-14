@@ -1,5 +1,5 @@
 {
-  "_readme": "Suggested timer for each workout card. The key is the card's file name in lowercase with dashes (Hell_s_Bells.jpg -> hell-s-bells). JSON has no comments, so the examples below live under keys that start with an underscore, which the app ignores: copy one, rename the key to your card, and change the numbers. New cards get a 'for time' line added automatically; edit it if the card needs a different timer.",
+  "_readme": "Suggested timer for each workout card. The key is the card's file name in lowercase with dashes (Hell_s_Bells.jpg -> hell-s-bells). JSON has no comments, so the examples below live under keys that start with an underscore, which the app ignores: copy one, rename the key to your card, and change the numbers. New cards get a 'for time' line added automatically; edit it if the card needs a different timer. A card can offer more than one timer: use a list of options (see _example-two-options-for-one-card); the first option is the main one, and an optional label names the others.",
 
   "_example-for-time": { "type": "fortime" },
   "_example-for-time-with-a-cap": { "type": "fortime", "capMin": 20 },
@@ -7,6 +7,10 @@
   "_example-emom": { "type": "emom", "totalMin": 30, "intervalMin": 1 },
   "_example-emom-every-2-minutes": { "type": "emom", "totalMin": 20, "intervalMin": 2 },
   "_example-interval-tabata": { "type": "interval", "work": 20, "rest": 10, "rounds": 8 },
+  "_example-two-options-for-one-card": [
+    { "type": "fortime" },
+    { "type": "interval", "work": 20, "rest": 10, "rounds": 7, "sets": 5, "restBetweenSec": 90, "label": "Tabata style" }
+  ],
   "_example-interval-repeated-in-rounds": { "type": "interval", "work": 20, "rest": 10, "rounds": 6, "sets": 5, "restBetweenSec": 90 },
 
   "full-body-forge": { "type": "fortime" },
@@ -20,7 +24,10 @@
   "arm-destroyer": { "type": "fortime" },
   "armageddon": { "type": "fortime" },
   "afterburner": { "type": "fortime" },
-  "tree-fiddy": { "type": "fortime" },
+  "tree-fiddy": [
+    { "type": "fortime" },
+    { "type": "interval", "work": 20, "rest": 10, "rounds": 7, "sets": 5, "restBetweenSec": 90, "label": "Tabata style" }
+  ],
   "limb-reaper": { "type": "fortime" },
   "upper-body-assault": { "type": "fortime" },
 
