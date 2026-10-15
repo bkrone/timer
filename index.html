@@ -9,6 +9,7 @@
 <meta name="apple-mobile-web-app-title" content="BK-KB">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#000000">
+<script>try{var __a = localStorage.getItem("bell_accent"); if(__a) document.documentElement.setAttribute("data-accent", __a);}catch(e){}</script>
 <link rel="apple-touch-icon" href="icons/icon-180.png">
 <link rel="icon" type="image/png" sizes="32x32" href="icons/icon-32.png">
 <link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png">
@@ -42,12 +43,23 @@
     --muted:#7a7a7a;
     --accent:#FF5A1F;
     --accent-dim:#7a2c10;
+    --accent-hi:#ff7a45;
+    --accent-bg:#2a1408;
+    --accent-rgb:255,90,31;
     --work:#35D07F;
     --work-dim:#123a26;
     --rest:#E23D28;
     --rest-dim:#3a1410;
     --radius:2px;
   }
+  /* accent colour choices (History > Settings); orange is the default above */
+  html[data-accent="orange"]{--accent:#FF5A1F; --accent-dim:#7A2B0F; --accent-hi:#FF7B4C; --accent-bg:#2A1408; --accent-rgb:255,90,31;}
+  html[data-accent="blue"]{--accent:#3D9BFF; --accent-dim:#1D4A7A; --accent-hi:#64AFFF; --accent-bg:#0A1A2A; --accent-rgb:61,155,255;}
+  html[data-accent="purple"]{--accent:#B57BFF; --accent-dim:#573B7A; --accent-hi:#C495FF; --accent-bg:#1E142A; --accent-rgb:181,123,255;}
+  html[data-accent="gold"]{--accent:#FFC21A; --accent-dim:#7A5D0C; --accent-hi:#FFCE48; --accent-bg:#2A2004; --accent-rgb:255,194,26;}
+  html[data-accent="green"]{--accent:#8FDB3C; --accent-dim:#45691D; --accent-hi:#A5E263; --accent-bg:#18240A; --accent-rgb:143,219,60;}
+  html[data-accent="pink"]{--accent:#FF5FA2; --accent-dim:#7A2E4E; --accent-hi:#FF7FB5; --accent-bg:#2A101B; --accent-rgb:255,95,162;}
+  html[data-accent="silver"]{--accent:#D9D9D9; --accent-dim:#686868; --accent-hi:#E1E1E1; --accent-bg:#242424; --accent-rgb:217,217,217;}
   *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
   html,body{height:100%;}
   body{
@@ -75,14 +87,14 @@
      border + background + box-shadow, which render reliably everywhere. */
   .nav-focus{
     border-color:var(--accent) !important;
-    background:#2a1408 !important;
-    box-shadow:0 0 0 4px var(--accent), 0 0 22px rgba(255,90,31,.55) !important;
+    background:var(--accent-bg) !important;
+    box-shadow:0 0 0 4px var(--accent), 0 0 22px rgba(var(--accent-rgb),.55) !important;
     color:var(--fg) !important;
     position:relative;
     z-index:2;
   }
   .primary-btn.nav-focus{
-    background:#ff7a45 !important;
+    background:var(--accent-hi) !important;
     color:#000 !important;
   }
   .ctrl-btn.main.nav-focus{
@@ -90,11 +102,11 @@
     color:#000 !important;
   }
   .navbtn.nav-focus{
-    background:#2a1408 !important;
+    background:var(--accent-bg) !important;
     border-radius:var(--radius);
   }
   input.nav-focus{
-    background:#2a1408 !important;
+    background:var(--accent-bg) !important;
   }
   input[type="number"]{
     font-family:inherit;
@@ -776,6 +788,18 @@
   .start-sub{display:block; font-size:.78rem; font-weight:500; opacity:.8; margin-top:.15em;}
   #card-start .ctrl-btn{width:100%; padding:.85em 1em; flex:none;}
 
+  /* ---------- accent colour swatches ---------- */
+  .swatches{display:flex; flex-wrap:wrap; gap:10px; margin:.8em 0 .2em;}
+  .swatch{
+    width:40px;
+    height:40px;
+    padding:0;
+    border-radius:50%;
+    border:2px solid var(--line);
+    cursor:pointer;
+  }
+  .swatch.on{box-shadow:0 0 0 3px var(--bg), 0 0 0 5px var(--fg);}
+
   /* ---------- settings (History screen) ---------- */
   .hist-settings{margin-top:1.4em; border-top:1px solid var(--line); padding-top:1em;}
   .hist-settings-title{font-weight:700; margin-bottom:.7em;}
@@ -936,6 +960,21 @@
         </div>
         <button class="ctrl-btn setting-btn" id="btn-toggle-push-ui" style="display:none;">Shown</button>
       </div>
+      <div class="setting-row" style="margin-top:1.2em;">
+        <div class="setting-text">
+          <div class="setting-name">Color</div>
+          <div class="setting-sub" id="accent-sub">Orange</div>
+        </div>
+      </div>
+      <div class="swatches" id="swatches">
+        <button class="swatch" data-accent="orange" aria-label="Orange" title="Orange" style="background:#FF5A1F;"></button>
+        <button class="swatch" data-accent="blue" aria-label="Blue" title="Blue" style="background:#3D9BFF;"></button>
+        <button class="swatch" data-accent="purple" aria-label="Purple" title="Purple" style="background:#B57BFF;"></button>
+        <button class="swatch" data-accent="gold" aria-label="Gold" title="Gold" style="background:#FFC21A;"></button>
+        <button class="swatch" data-accent="green" aria-label="Green" title="Green" style="background:#8FDB3C;"></button>
+        <button class="swatch" data-accent="pink" aria-label="Pink" title="Pink" style="background:#FF5FA2;"></button>
+        <button class="swatch" data-accent="silver" aria-label="Silver" title="Silver" style="background:#D9D9D9;"></button>
+      </div>
     </div>
     <div class="hist-more" id="app-version"></div>
   </section>
@@ -1002,7 +1041,7 @@
   if(/[?&]notv(&|$)/.test(location.search)) IS_TV = false;
   var IS_IOS = /iPad|iPhone|iPod/.test(UA) || (/Macintosh/.test(UA) && navigator.maxTouchPoints > 1);
   if(IS_TV) document.body.classList.add("tv");
-  var APP_VERSION = "v26";   // shown at the bottom of the History screen
+  var APP_VERSION = "v28";   // shown at the bottom of the History screen
 
   // Can this device receive push alerts at all? TVs can't, old iPads/iPhones
   // (before iOS 16.4) can't, and iOS only allows them for an app that has been
@@ -2468,7 +2507,34 @@
     renderSettings();
     refreshPushButton();
   });
-  function openHistory(){ renderHistory(); renderSettings(); show("screen-history"); }
+  // Accent colour, saved on this device only. (The saved choice is applied by a
+  // tiny script in the page head so there's no flash of orange when the app opens.)
+  var ACCENTS = {orange:"Orange", blue:"Blue", purple:"Purple", gold:"Gold", green:"Green", pink:"Pink", silver:"Silver"};
+  var ACCENT_KEY = "bell_accent";
+  function currentAccent(){
+    var a = null;
+    try{ a = store && store.getItem(ACCENT_KEY); }catch(e){}
+    return (a && ACCENTS[a]) ? a : "orange";
+  }
+  function markAccent(){
+    var cur = currentAccent();
+    var sw = el("swatches").querySelectorAll(".swatch");
+    for(var i = 0; i < sw.length; i++) sw[i].classList.toggle("on", sw[i].getAttribute("data-accent") === cur);
+    el("accent-sub").textContent = ACCENTS[cur];
+  }
+  function applyAccent(id){
+    if(!ACCENTS[id]) id = "orange";
+    document.documentElement.setAttribute("data-accent", id);
+    try{ if(store) store.setItem(ACCENT_KEY, id); }catch(e){}
+    markAccent();
+  }
+  el("swatches").addEventListener("click", function(e){
+    var t = e.target;
+    while(t && t !== this && !(t.classList && t.classList.contains("swatch"))) t = t.parentNode;
+    if(t && t !== this) applyAccent(t.getAttribute("data-accent"));
+  });
+  if(!ACCENTS[document.documentElement.getAttribute("data-accent") || ""]) document.documentElement.setAttribute("data-accent", currentAccent());
+  function openHistory(){ renderHistory(); renderSettings(); markAccent(); show("screen-history"); }
 
   el("btn-history").addEventListener("click", openHistory);
   el("btn-history-back").addEventListener("click", function(){ show("screen-select"); });

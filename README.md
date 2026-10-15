@@ -100,6 +100,9 @@ the automatic update stops and leaves it alone rather than overwriting it.
   screen. It is hidden automatically on devices that can't receive alerts (the TV, older iPads, an
   iPhone or iPad that hasn't been added to the Home Screen), and once alerts are on. On a device that
   can take alerts you can also switch the button off or on by hand.
+  The same Settings section has a **Color** choice (Orange, Blue, Purple, Gold, Green, Pink or Silver) that
+  changes the accent color used for buttons, highlights and labels. It is saved on that device only, so
+  the TV and each phone can have their own.
 - **New cards show up by themselves.** The app checks the `cards` folder when it opens, whenever the
   card picker opens, and when a device wakes up (at most once a minute). A card this device hasn't
   shown you yet gets a red number on the home screen's card bar and a red **NEW** tag in the picker.
