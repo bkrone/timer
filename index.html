@@ -9,7 +9,8 @@
 <meta name="apple-mobile-web-app-title" content="BK-KB">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#000000">
-<script>try{var __a = localStorage.getItem("bell_accent"); if(__a) document.documentElement.setAttribute("data-accent", __a);}catch(e){}</script>
+<script>try{var __a = localStorage.getItem("bell_accent"); if(__a){ document.documentElement.setAttribute("data-accent", __a);
+  if(__a === "custom"){ var __v = JSON.parse(localStorage.getItem("bell_accent_vars") || "null"); if(__v){ for(var __k in __v){ document.documentElement.style.setProperty(__k, __v[__k]); } } } }}catch(e){}</script>
 <link rel="apple-touch-icon" href="icons/icon-180.png">
 <link rel="icon" type="image/png" sizes="32x32" href="icons/icon-32.png">
 <link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png">
@@ -45,6 +46,8 @@
     --accent-dim:#7a2c10;
     --accent-hi:#ff7a45;
     --accent-bg:#2a1408;
+    --accent-press:#e04f18;
+    --on-accent:#000;
     --accent-rgb:255,90,31;
     --work:#35D07F;
     --work-dim:#123a26;
@@ -53,13 +56,13 @@
     --radius:2px;
   }
   /* accent colour choices (History > Settings); orange is the default above */
-  html[data-accent="orange"]{--accent:#FF5A1F; --accent-dim:#7A2B0F; --accent-hi:#FF7B4C; --accent-bg:#2A1408; --accent-rgb:255,90,31;}
-  html[data-accent="blue"]{--accent:#3D9BFF; --accent-dim:#1D4A7A; --accent-hi:#64AFFF; --accent-bg:#0A1A2A; --accent-rgb:61,155,255;}
-  html[data-accent="purple"]{--accent:#B57BFF; --accent-dim:#573B7A; --accent-hi:#C495FF; --accent-bg:#1E142A; --accent-rgb:181,123,255;}
-  html[data-accent="gold"]{--accent:#FFC21A; --accent-dim:#7A5D0C; --accent-hi:#FFCE48; --accent-bg:#2A2004; --accent-rgb:255,194,26;}
-  html[data-accent="green"]{--accent:#8FDB3C; --accent-dim:#45691D; --accent-hi:#A5E263; --accent-bg:#18240A; --accent-rgb:143,219,60;}
-  html[data-accent="pink"]{--accent:#FF5FA2; --accent-dim:#7A2E4E; --accent-hi:#FF7FB5; --accent-bg:#2A101B; --accent-rgb:255,95,162;}
-  html[data-accent="silver"]{--accent:#D9D9D9; --accent-dim:#686868; --accent-hi:#E1E1E1; --accent-bg:#242424; --accent-rgb:217,217,217;}
+  html[data-accent="orange"]{--accent:#FF5A1F; --accent-press:#E04F1B; --accent-dim:#7A2B0F; --accent-hi:#FF7B4C; --accent-bg:#2A1408; --accent-rgb:255,90,31;}
+  html[data-accent="blue"]{--accent:#3D9BFF; --accent-press:#3688E0; --accent-dim:#1D4A7A; --accent-hi:#64AFFF; --accent-bg:#0A1A2A; --accent-rgb:61,155,255;}
+  html[data-accent="purple"]{--accent:#B57BFF; --accent-press:#9F6CE0; --accent-dim:#573B7A; --accent-hi:#C495FF; --accent-bg:#1E142A; --accent-rgb:181,123,255;}
+  html[data-accent="gold"]{--accent:#FFC21A; --accent-press:#E0AB17; --accent-dim:#7A5D0C; --accent-hi:#FFCE48; --accent-bg:#2A2004; --accent-rgb:255,194,26;}
+  html[data-accent="green"]{--accent:#8FDB3C; --accent-press:#7EC135; --accent-dim:#45691D; --accent-hi:#A5E263; --accent-bg:#18240A; --accent-rgb:143,219,60;}
+  html[data-accent="pink"]{--accent:#FF5FA2; --accent-press:#E0548F; --accent-dim:#7A2E4E; --accent-hi:#FF7FB5; --accent-bg:#2A101B; --accent-rgb:255,95,162;}
+  html[data-accent="silver"]{--accent:#D9D9D9; --accent-press:#BFBFBF; --accent-dim:#686868; --accent-hi:#E1E1E1; --accent-bg:#242424; --accent-rgb:217,217,217;}
   *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
   html,body{height:100%;}
   body{
@@ -95,11 +98,11 @@
   }
   .primary-btn.nav-focus{
     background:var(--accent-hi) !important;
-    color:#000 !important;
+    color:var(--on-accent) !important;
   }
   .ctrl-btn.main.nav-focus{
     background:var(--accent) !important;
-    color:#000 !important;
+    color:var(--on-accent) !important;
   }
   .navbtn.nav-focus{
     background:var(--accent-bg) !important;
@@ -347,7 +350,7 @@
   }
   .stepper-btn:active, .stepper-btn.nav-focus{
     background:var(--accent) !important;
-    color:#000 !important;
+    color:var(--on-accent) !important;
   }
   .stepper input[type="number"]{
     width:3.6em;
@@ -382,14 +385,14 @@
   .primary-btn{
     width:100%;
     background:var(--accent);
-    color:#000;
+    color:var(--on-accent);
     font-weight:700;
     font-size:1.05rem;
     padding:.95em;
     border-radius:var(--radius);
     text-align:center;
   }
-  .primary-btn:active{background:#e04f18;}
+  .primary-btn:active{background:var(--accent-press);}
   .primary-btn[disabled]{
     background:var(--line);
     color:var(--muted);
@@ -789,16 +792,49 @@
   #card-start .ctrl-btn{width:100%; padding:.85em 1em; flex:none;}
 
   /* ---------- accent colour swatches ---------- */
-  .swatches{display:flex; flex-wrap:wrap; gap:10px; margin:.8em 0 .2em;}
+  .swatches{display:flex; flex-wrap:wrap; gap:6px; margin:.8em 0 .2em;}
+  .swatch.custom{--sw:linear-gradient(135deg,#ff3b30,#ffcc00,#34c759,#32ade6,#af52de);}
   .swatch{
-    width:40px;
-    height:40px;
+    width:38px;
+    height:38px;
+    background:var(--sw);
     padding:0;
     border-radius:50%;
     border:2px solid var(--line);
     cursor:pointer;
   }
   .swatch.on{box-shadow:0 0 0 3px var(--bg), 0 0 0 5px var(--fg);}
+  .swatch.nav-focus{background:var(--sw) !important;}
+  .custom-color{margin-top:.9em;}
+  .slider-row{display:flex; align-items:center; gap:14px; margin:.7em 0;}
+  .slider-label{flex:0 0 5.2em; color:var(--muted); font-size:.85rem;}
+  .slider-row input[type="range"]{
+    flex:1 1 auto;
+    min-width:0;
+    height:26px;
+    border-radius:13px;
+    -webkit-appearance:none;
+    appearance:none;
+    border:1px solid var(--line);
+    background:#222;
+  }
+  #hue-slider{background:linear-gradient(90deg,#f00,#ff0,#0f0,#0ff,#00f,#f0f,#f00);}
+  .slider-row input[type="range"]::-webkit-slider-thumb{
+    -webkit-appearance:none;
+    width:30px;
+    height:30px;
+    border-radius:50%;
+    background:#fff;
+    border:3px solid #000;
+    box-shadow:0 0 0 1px #888;
+  }
+  .slider-row input[type="range"]::-moz-range-thumb{
+    width:26px;
+    height:26px;
+    border-radius:50%;
+    background:#fff;
+    border:3px solid #000;
+  }
 
   /* ---------- settings (History screen) ---------- */
   .hist-settings{margin-top:1.4em; border-top:1px solid var(--line); padding-top:1em;}
@@ -967,13 +1003,25 @@
         </div>
       </div>
       <div class="swatches" id="swatches">
-        <button class="swatch" data-accent="orange" aria-label="Orange" title="Orange" style="background:#FF5A1F;"></button>
-        <button class="swatch" data-accent="blue" aria-label="Blue" title="Blue" style="background:#3D9BFF;"></button>
-        <button class="swatch" data-accent="purple" aria-label="Purple" title="Purple" style="background:#B57BFF;"></button>
-        <button class="swatch" data-accent="gold" aria-label="Gold" title="Gold" style="background:#FFC21A;"></button>
-        <button class="swatch" data-accent="green" aria-label="Green" title="Green" style="background:#8FDB3C;"></button>
-        <button class="swatch" data-accent="pink" aria-label="Pink" title="Pink" style="background:#FF5FA2;"></button>
-        <button class="swatch" data-accent="silver" aria-label="Silver" title="Silver" style="background:#D9D9D9;"></button>
+        <button class="swatch" data-accent="orange" aria-label="Orange" title="Orange" style="--sw:#FF5A1F;"></button>
+        <button class="swatch" data-accent="blue" aria-label="Blue" title="Blue" style="--sw:#3D9BFF;"></button>
+        <button class="swatch" data-accent="purple" aria-label="Purple" title="Purple" style="--sw:#B57BFF;"></button>
+        <button class="swatch" data-accent="gold" aria-label="Gold" title="Gold" style="--sw:#FFC21A;"></button>
+        <button class="swatch" data-accent="green" aria-label="Green" title="Green" style="--sw:#8FDB3C;"></button>
+        <button class="swatch" data-accent="pink" aria-label="Pink" title="Pink" style="--sw:#FF5FA2;"></button>
+        <button class="swatch" data-accent="silver" aria-label="Silver" title="Silver" style="--sw:#D9D9D9;"></button>
+        <button class="swatch custom" data-accent="custom" aria-label="Custom" title="Custom"></button>
+      </div>
+      <div class="custom-color" id="custom-color" style="display:none;">
+        <div class="slider-row">
+          <label class="slider-label" for="hue-slider">Hue</label>
+          <input type="range" id="hue-slider" min="0" max="359" step="1" value="200">
+        </div>
+        <div class="slider-row">
+          <label class="slider-label" for="bright-slider">Brightness</label>
+          <input type="range" id="bright-slider" min="35" max="85" step="1" value="60">
+        </div>
+        <div class="setting-sub">Some colors are easier to read than others. If the buttons get hard to see, pick one of the swatches above.</div>
       </div>
     </div>
     <div class="hist-more" id="app-version"></div>
@@ -1041,7 +1089,7 @@
   if(/[?&]notv(&|$)/.test(location.search)) IS_TV = false;
   var IS_IOS = /iPad|iPhone|iPod/.test(UA) || (/Macintosh/.test(UA) && navigator.maxTouchPoints > 1);
   if(IS_TV) document.body.classList.add("tv");
-  var APP_VERSION = "v28";   // shown at the bottom of the History screen
+  var APP_VERSION = "v29";   // shown at the bottom of the History screen
 
   // Can this device receive push alerts at all? TVs can't, old iPads/iPhones
   // (before iOS 16.4) can't, and iOS only allows them for an app that has been
@@ -1514,8 +1562,8 @@
       // Repeat the whole timer for several rounds, with a rest between them
       var gSets = fieldGroup(fields, "Rounds (repeat the timer)");
       var gRest = null;
-      cfg.sets = (saved.sets > 1) ? Math.min(6, Math.round(saved.sets)) : 1;
-      chipRow(gSets, [1,2,3,4,5,6].map(function(n){ return {label:String(n), value:n}; }), "", cfg.sets,
+      cfg.sets = (saved.sets > 1) ? Math.min(10, Math.round(saved.sets)) : 1;
+      chipRow(gSets, [1,2,3,4,5,6,7,8,9,10].map(function(n){ return {label:String(n), value:n}; }), "", cfg.sets,
         function(v){ cfg.sets = v; if(gRest) gRest.style.display = (v > 1) ? "" : "none"; }, false);
       gRest = fieldGroup(fields, "Rest between rounds");
       cfg.restSec = (typeof saved.restSec === "number") ? saved.restSec : 90;
@@ -2509,8 +2557,60 @@
   });
   // Accent colour, saved on this device only. (The saved choice is applied by a
   // tiny script in the page head so there's no flash of orange when the app opens.)
-  var ACCENTS = {orange:"Orange", blue:"Blue", purple:"Purple", gold:"Gold", green:"Green", pink:"Pink", silver:"Silver"};
+  var ACCENTS = {orange:"Orange", blue:"Blue", purple:"Purple", gold:"Gold", green:"Green", pink:"Pink", silver:"Silver", custom:"Custom"};
   var ACCENT_KEY = "bell_accent";
+  var CUSTOM_KEY = "bell_accent_custom";        // "hue,brightness"
+  var CUSTOM_VARS_KEY = "bell_accent_vars";     // the computed CSS values, for the head script
+  var CUSTOM_PROPS = ["--accent", "--accent-dim", "--accent-hi", "--accent-bg", "--accent-press", "--accent-rgb", "--on-accent"];
+
+  function hslToRgb(h, s, l){                   // h 0-360, s and l 0-1 -> [r,g,b] 0-255
+    var c = (1 - Math.abs(2 * l - 1)) * s, x = c * (1 - Math.abs((h / 60) % 2 - 1)), m = l - c / 2, r = 0, g = 0, b = 0;
+    if(h < 60){ r = c; g = x; } else if(h < 120){ r = x; g = c; } else if(h < 180){ g = c; b = x; }
+    else if(h < 240){ g = x; b = c; } else if(h < 300){ r = x; b = c; } else { r = c; b = x; }
+    return [Math.round((r + m) * 255), Math.round((g + m) * 255), Math.round((b + m) * 255)];
+  }
+  function toHex(rgb){
+    return "#" + rgb.map(function(v){ var s = Math.max(0, Math.min(255, Math.round(v))).toString(16); return s.length < 2 ? "0" + s : s; }).join("").toUpperCase();
+  }
+  function relLum(rgb){
+    var f = function(v){ v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); };
+    return 0.2126 * f(rgb[0]) + 0.7152 * f(rgb[1]) + 0.0722 * f(rgb[2]);
+  }
+  function contrastWith(rgb, other){
+    var a = relLum(rgb), b = relLum(other), hi = Math.max(a, b), lo = Math.min(a, b);
+    return (hi + 0.05) / (lo + 0.05);
+  }
+  // Every shade the app uses is worked out from one colour. The text on buttons
+  // flips between black and white, whichever reads better on that colour.
+  function customVars(hue, bright){
+    var rgb = hslToRgb(hue, 1, bright / 100);
+    var scale = function(k){ return rgb.map(function(v){ return v * k; }); };
+    var toward = function(k){ return rgb.map(function(v){ return v + (255 - v) * k; }); };
+    return {
+      "--accent": toHex(rgb), "--accent-dim": toHex(scale(.48)), "--accent-hi": toHex(toward(.2)),
+      "--accent-bg": toHex(scale(.165)), "--accent-press": toHex(scale(.88)), "--accent-rgb": rgb.join(","),
+      "--on-accent": contrastWith(rgb, [0, 0, 0]) >= contrastWith(rgb, [255, 255, 255]) ? "#000" : "#fff"
+    };
+  }
+  function loadCustom(){
+    var h = 200, b = 60;
+    try{
+      var v = store && store.getItem(CUSTOM_KEY);
+      if(v){ var p = v.split(","); var ph = parseInt(p[0], 10), pb = parseInt(p[1], 10);
+        if(isFinite(ph) && ph >= 0 && ph <= 359) h = ph; if(isFinite(pb) && pb >= 35 && pb <= 85) b = pb; }
+    }catch(e){}
+    return [h, b];
+  }
+  function clearCustomVars(){
+    for(var i = 0; i < CUSTOM_PROPS.length; i++) document.documentElement.style.removeProperty(CUSTOM_PROPS[i]);
+  }
+  function setCustomColor(hue, bright, save){
+    var vars = customVars(hue, bright);
+    for(var k in vars) document.documentElement.style.setProperty(k, vars[k]);
+    if(save && store){
+      try{ store.setItem(CUSTOM_KEY, hue + "," + bright); store.setItem(CUSTOM_VARS_KEY, JSON.stringify(vars)); }catch(e){}
+    }
+  }
   function currentAccent(){
     var a = null;
     try{ a = store && store.getItem(ACCENT_KEY); }catch(e){}
@@ -2521,11 +2621,23 @@
     var sw = el("swatches").querySelectorAll(".swatch");
     for(var i = 0; i < sw.length; i++) sw[i].classList.toggle("on", sw[i].getAttribute("data-accent") === cur);
     el("accent-sub").textContent = ACCENTS[cur];
+    el("custom-color").style.display = (cur === "custom") ? "" : "none";
+    if(cur === "custom"){
+      var hb = loadCustom();
+      el("hue-slider").value = hb[0];
+      el("bright-slider").value = hb[1];
+      paintBrightnessTrack(hb[0]);
+    }
+  }
+  function paintBrightnessTrack(hue){
+    el("bright-slider").style.background = "linear-gradient(90deg, hsl(" + hue + ",100%,35%), hsl(" + hue + ",100%,85%))";
   }
   function applyAccent(id){
     if(!ACCENTS[id]) id = "orange";
     document.documentElement.setAttribute("data-accent", id);
     try{ if(store) store.setItem(ACCENT_KEY, id); }catch(e){}
+    if(id === "custom"){ var hb = loadCustom(); setCustomColor(hb[0], hb[1], true); }
+    else { clearCustomVars(); }
     markAccent();
   }
   el("swatches").addEventListener("click", function(e){
@@ -2533,7 +2645,15 @@
     while(t && t !== this && !(t.classList && t.classList.contains("swatch"))) t = t.parentNode;
     if(t && t !== this) applyAccent(t.getAttribute("data-accent"));
   });
+  function onSlide(){
+    var hue = parseInt(el("hue-slider").value, 10), bright = parseInt(el("bright-slider").value, 10);
+    paintBrightnessTrack(hue);
+    setCustomColor(hue, bright, true);
+  }
+  el("hue-slider").addEventListener("input", onSlide);
+  el("bright-slider").addEventListener("input", onSlide);
   if(!ACCENTS[document.documentElement.getAttribute("data-accent") || ""]) document.documentElement.setAttribute("data-accent", currentAccent());
+  if(currentAccent() === "custom"){ var hb0 = loadCustom(); setCustomColor(hb0[0], hb0[1], true); }   // safety net if the head script couldn't apply it
   function openHistory(){ renderHistory(); renderSettings(); markAccent(); show("screen-history"); }
 
   el("btn-history").addEventListener("click", openHistory);
@@ -2646,6 +2766,8 @@
     more.innerHTML = "";
     if(!opts.length){ box.style.display = "none"; return; }
     fillStartButton(el("btn-start-card"), opts[0]);
+    // one option = the solid call-to-action; several options = all the same plain style
+    el("btn-start-card").className = (opts.length > 1) ? "ctrl-btn" : "primary-btn";
     opts.slice(1).forEach(function(opt){
       var b2 = document.createElement("button");
       b2.type = "button";

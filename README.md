@@ -77,6 +77,9 @@ main one (it's the big button, and **Surprise me** uses it):
 ]
 ```
 
+When a card offers more than one option, all of its Start buttons share the same plain style; a card with
+one timer keeps the solid orange (or your chosen color) Start button.
+
 The optional `"label"` names an option on its button (the button also shows the numbers underneath).
 Without a label, the button just describes the timer. A card can have up to 4 options, and a card with
 one timer keeps working exactly as before. New cards still get a single "for time" line automatically,
@@ -90,7 +93,7 @@ the automatic update stops and leaves it alone rather than overwriting it.
 - **Pick a card** at the top of the home screen. If it has a timer, a **Start** button appears.
   **Surprise me** in the card picker chooses a random card and uses its own timer.
 - **AMRAP, EMOM, Interval and For time** let you set a timer by hand. **Interval** can also repeat as
-  several rounds (up to 6) with an automatic rest of 1:00, 1:30, 2:00 or Manual between them, just like
+  several rounds (up to 10) with an automatic rest of 1:00, 1:30, 2:00 or Manual between them, just like
   the Tabata cards. **Plank** needs no setup: it
   goes straight to a ready screen for the 3-minute ladder (60 seconds on hands, 60 on elbows, 30 on
   hands, 30 on elbows) with one soft beep every 15 seconds. **View card** shows just the card.
@@ -100,9 +103,10 @@ the automatic update stops and leaves it alone rather than overwriting it.
   screen. It is hidden automatically on devices that can't receive alerts (the TV, older iPads, an
   iPhone or iPad that hasn't been added to the Home Screen), and once alerts are on. On a device that
   can take alerts you can also switch the button off or on by hand.
-  The same Settings section has a **Color** choice (Orange, Blue, Purple, Gold, Green, Pink or Silver) that
-  changes the accent color used for buttons, highlights and labels. It is saved on that device only, so
-  the TV and each phone can have their own.
+  The same Settings section has a **Color** choice (Orange, Blue, Purple, Gold, Green, Pink or Silver, or **Custom**) that
+  changes the accent color used for buttons, highlights and labels. Custom shows a **Hue** slider and a
+  **Brightness** slider, and the button text switches between black and white so it stays readable. It is
+  saved on that device only, so the TV and each phone can have their own.
 - **New cards show up by themselves.** The app checks the `cards` folder when it opens, whenever the
   card picker opens, and when a device wakes up (at most once a minute). A card this device hasn't
   shown you yet gets a red number on the home screen's card bar and a red **NEW** tag in the picker.
