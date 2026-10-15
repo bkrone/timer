@@ -13,16 +13,28 @@
   ],
   "_example-interval-repeated-in-rounds": { "type": "interval", "work": 20, "rest": 10, "rounds": 6, "sets": 5, "restBetweenSec": 90 },
 
-  "full-body-forge": { "type": "fortime" },
-  "instant-regret": { "type": "fortime" },
+  "full-body-forge": [
+    { "type": "fortime" },
+    { "type": "interval", "work": 20, "rest": 10, "rounds": 5, "sets": 5, "restBetweenSec": 90, "label": "Tabata style" }
+  ],
+  "instant-regret": [
+    { "type": "fortime" },
+    { "type": "interval", "work": 20, "rest": 10, "rounds": 5, "sets": 5, "restBetweenSec": 90, "label": "Tabata style" }
+  ],
   "millennium-chipper": { "type": "fortime" },
   "sit-ups-and-shut-ups": { "type": "fortime" },
   "doom-ladder": { "type": "fortime" },
-  "goblet-gauntlet": { "type": "fortime" },
+  "goblet-gauntlet": [
+    { "type": "fortime" },
+    { "type": "interval", "work": 20, "rest": 10, "rounds": 5, "sets": 5, "restBetweenSec": 90, "label": "Tabata style" }
+  ],
   "murph": { "type": "fortime" },
   "quadpocalypse": { "type": "fortime" },
   "arm-destroyer": { "type": "fortime" },
-  "armageddon": { "type": "fortime" },
+  "armageddon": [
+    { "type": "fortime" },
+    { "type": "interval", "work": 20, "rest": 10, "rounds": 5, "sets": 5, "restBetweenSec": 90, "label": "Tabata style" }
+  ],
   "afterburner": { "type": "fortime" },
   "tree-fiddy": [
     { "type": "fortime" },
