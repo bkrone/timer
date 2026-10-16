@@ -38,7 +38,7 @@
   "afterburner": { "type": "fortime" },
   "tree-fiddy": [
     { "type": "fortime" },
-    { "type": "interval", "work": 20, "rest": 10, "rounds": 7, "sets": 5, "restBetweenSec": 90, "label": "Tabata style" }
+    { "type": "interval", "work": 20, "rest": 10, "rounds": 7, "sets": 6, "restBetweenSec": 90, "label": "Tabata style" }
   ],
   "limb-reaper": { "type": "fortime" },
   "upper-body-assault": { "type": "fortime" },
