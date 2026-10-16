@@ -1089,7 +1089,7 @@
   if(/[?&]notv(&|$)/.test(location.search)) IS_TV = false;
   var IS_IOS = /iPad|iPhone|iPod/.test(UA) || (/Macintosh/.test(UA) && navigator.maxTouchPoints > 1);
   if(IS_TV) document.body.classList.add("tv");
-  var APP_VERSION = "v29";   // shown at the bottom of the History screen
+  var APP_VERSION = "v30";   // shown at the bottom of the History screen
 
   // Can this device receive push alerts at all? TVs can't, old iPads/iPhones
   // (before iOS 16.4) can't, and iOS only allows them for an app that has been
@@ -2766,8 +2766,8 @@
     more.innerHTML = "";
     if(!opts.length){ box.style.display = "none"; return; }
     fillStartButton(el("btn-start-card"), opts[0]);
-    // one option = the solid call-to-action; several options = all the same plain style
-    el("btn-start-card").className = (opts.length > 1) ? "ctrl-btn" : "primary-btn";
+    // every card's Start buttons share the same plain style, whether it has one option or several
+    el("btn-start-card").className = "ctrl-btn";
     opts.slice(1).forEach(function(opt){
       var b2 = document.createElement("button");
       b2.type = "button";

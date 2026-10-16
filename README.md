@@ -77,8 +77,7 @@ main one (it's the big button, and **Surprise me** uses it):
 ]
 ```
 
-When a card offers more than one option, all of its Start buttons share the same plain style; a card with
-one timer keeps the solid orange (or your chosen color) Start button.
+Start buttons on the home screen all share the same plain style, whether a card has one timer or several.
 
 The optional `"label"` names an option on its button (the button also shows the numbers underneath).
 Without a label, the button just describes the timer. A card can have up to 4 options, and a card with
