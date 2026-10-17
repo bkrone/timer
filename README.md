@@ -96,9 +96,9 @@ the automatic update stops and leaves it alone rather than overwriting it.
   the Tabata cards. **Plank** needs no setup: it
   goes straight to a ready screen for the 3-minute ladder (60 seconds on hands, 60 on elbows, 30 on
   hands, 30 on elbows) with one soft beep every 15 seconds. **View card** shows just the card.
-- **History** (top right) lists the workouts that were run on this device, with **Copy as CSV**.
-  Each device keeps its own log. The version number is at the bottom of that screen.
-- **History > Settings** controls the **Enable new-card alerts** button at the bottom of the home
+- **Settings** (top right) opens the settings, with the app version just under them, and then the workout log.
+  The log lists the workouts that were run on this device, with **Copy as CSV**. Each device keeps its own log.
+- The settings on that screen control the **Enable new-card alerts** button at the bottom of the home
   screen. It is hidden automatically on devices that can't receive alerts (the TV, older iPads, an
   iPhone or iPad that hasn't been added to the Home Screen), and once alerts are on. On a device that
   can take alerts you can also switch the button off or on by hand.
@@ -133,7 +133,7 @@ the automatic update stops and leaves it alone rather than overwriting it.
   OneSignal said. Only newly added cards notify (deleting or editing a card doesn't). Also confirm the
   phone appears as Subscribed under Audience > Subscriptions in OneSignal. If someone deleted and
   re-added the app to their home screen, they need to tap the enable-alerts button again.
-- **The app seems out of date.** Check the version at the bottom of the History screen, then close the
+- **The app seems out of date.** Check the version under the settings, then close the
   app completely and reopen it while online.
 - **A new card isn't showing.** Open the card picker and tap **Refresh**. If it still isn't there,
   check that the file is in the `cards` folder (not a subfolder) and ends in .jpg, .png, .webp or .gif.

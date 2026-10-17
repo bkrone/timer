@@ -837,7 +837,8 @@
   }
 
   /* ---------- settings (History screen) ---------- */
-  .hist-settings{margin-top:1.4em; border-top:1px solid var(--line); padding-top:1em;}
+  .hist-settings{margin-top:.4em;}
+  .hist-log{margin-top:1.4em; border-top:1px solid var(--line); padding-top:1em;}
   .hist-settings-title{font-weight:700; margin-bottom:.7em;}
   .setting-row{display:flex; align-items:center; justify-content:space-between; gap:14px;}
   .setting-text{min-width:0;}
@@ -875,7 +876,7 @@
   <section class="screen active" id="screen-select">
     <div class="topbar">
       <div class="brand">first due <span class="dot">fitness</span></div>
-      <button class="navbtn" id="btn-history">History</button>
+      <button class="navbtn" id="btn-history">Settings</button>
     </div>
     <div class="select-title">What are we running?</div>
 
@@ -980,15 +981,8 @@
         Back
       </button>
     </div>
-    <div class="select-title">Workout log</div>
-    <div class="hist-summary" id="hist-summary"></div>
-    <div class="hist-actions" id="hist-actions">
-      <button class="ctrl-btn" id="btn-hist-copy">Copy as CSV</button>
-      <button class="ctrl-btn" id="btn-hist-clear">Clear log</button>
-    </div>
-    <div class="hist-list" id="hist-list"></div>
+    <div class="select-title">Settings</div>
     <div class="hist-settings" id="hist-settings">
-      <div class="hist-settings-title">Settings</div>
       <div class="setting-row">
         <div class="setting-text">
           <div class="setting-name">New-card alerts button</div>
@@ -1025,6 +1019,15 @@
       </div>
     </div>
     <div class="hist-more" id="app-version"></div>
+    <div class="hist-log">
+      <div class="hist-settings-title">Workout log</div>
+      <div class="hist-summary" id="hist-summary"></div>
+      <div class="hist-actions" id="hist-actions">
+        <button class="ctrl-btn" id="btn-hist-copy">Copy as CSV</button>
+        <button class="ctrl-btn" id="btn-hist-clear">Clear log</button>
+      </div>
+      <div class="hist-list" id="hist-list"></div>
+    </div>
   </section>
 
   <!-- ===================== RUN SCREEN ===================== -->
@@ -1089,7 +1092,7 @@
   if(/[?&]notv(&|$)/.test(location.search)) IS_TV = false;
   var IS_IOS = /iPad|iPhone|iPod/.test(UA) || (/Macintosh/.test(UA) && navigator.maxTouchPoints > 1);
   if(IS_TV) document.body.classList.add("tv");
-  var APP_VERSION = "v30";   // shown at the bottom of the History screen
+  var APP_VERSION = "v32";   // shown under the settings
 
   // Can this device receive push alerts at all? TVs can't, old iPads/iPhones
   // (before iOS 16.4) can't, and iOS only allows them for an app that has been
