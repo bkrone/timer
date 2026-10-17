@@ -46,5 +46,8 @@
   "the-smoke-show": { "type": "interval", "work": 20, "rest": 10, "rounds": 6, "sets": 5, "restBetweenSec": 90 },
   "hell-s-bells": { "type": "interval", "work": 20, "rest": 10, "rounds": 6, "sets": 5, "restBetweenSec": 90 },
 
-  "abc": { "type": "emom", "totalMin": 30, "intervalMin": 1 }
+  "abc": { "type": "emom", "totalMin": 30, "intervalMin": 1 },
+
+  "emotional-baggage": { "type": "fortime" },
+  "qr": { "type": "fortime" }
 }
