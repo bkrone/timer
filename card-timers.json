@@ -48,6 +48,9 @@
 
   "abc": { "type": "emom", "totalMin": 30, "intervalMin": 1 },
 
-  "emotional-baggage": { "type": "fortime" },
+  "emotional-baggage": [
+    { "type": "fortime" },
+    { "type": "interval", "work": 20, "rest": 10, "rounds": 6, "sets": 5, "restBetweenSec": 90, "label": "Tabata style" }
+  ],
   "qr": { "type": "fortime" }
 }
