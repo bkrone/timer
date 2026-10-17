@@ -581,6 +581,8 @@
     align-items:center;
     justify-content:center;
     min-height:0;
+    overflow:hidden;          /* a zoomed card stays inside its area */
+    touch-action:none;        /* the app handles pinch, drag and double-tap itself */
   }
   .cardonly-wrap img{
     max-width:100%;
@@ -588,7 +590,14 @@
     object-fit:contain;
     border-radius:var(--radius);
     background:#fff;
+    transform-origin:center center;
+    will-change:transform;
+    pointer-events:none;
+    -webkit-user-drag:none;
+    -webkit-touch-callout:none;
   }
+  .cardonly-hint{text-align:center; color:var(--muted); font-size:.78rem; padding:.45em 0 .2em;}
+  body.tv .cardonly-hint{display:none;}
   .cardonly-empty{
     flex:1 1 auto;
     display:flex;
@@ -926,6 +935,7 @@
     <div class="cardonly-wrap" id="cardonly-wrap">
       <img id="cardonly-img" alt="Workout card">
     </div>
+    <div class="cardonly-hint" id="cardonly-hint">Pinch to zoom. Double-tap to zoom in or out.</div>
     <div class="cardonly-note" id="cardonly-note" style="display:none;"></div>
     <div class="cardonly-empty" id="cardonly-empty" style="display:none;">
       <p>No card selected yet.</p>
@@ -1092,7 +1102,7 @@
   if(/[?&]notv(&|$)/.test(location.search)) IS_TV = false;
   var IS_IOS = /iPad|iPhone|iPod/.test(UA) || (/Macintosh/.test(UA) && navigator.maxTouchPoints > 1);
   if(IS_TV) document.body.classList.add("tv");
-  var APP_VERSION = "v32";   // shown under the settings
+  var APP_VERSION = "v33";   // shown under the settings
 
   // Can this device receive push alerts at all? TVs can't, old iPads/iPhones
   // (before iOS 16.4) can't, and iOS only allows them for an app that has been
@@ -1312,6 +1322,7 @@
     document.querySelectorAll(".screen").forEach(function(s){ s.classList.remove("active"); });
     el(id).classList.add("active");
     if(prev && prev.id === "screen-cards" && id !== "screen-cards") markCardsSeen();
+    if(typeof CardZoom !== "undefined" && CardZoom) CardZoom.reset();
     if(typeof focusFirst === "function") focusFirst(id);
     syncAwake();
   }
@@ -2326,9 +2337,11 @@
       el("cardonly-img").src = cardUrl(selectedCard);
       el("cardonly-img").alt = prettyName(selectedCard);
       wrap.style.display = "";
+      el("cardonly-hint").style.display = "";
       empty.style.display = "none";
     } else {
       wrap.style.display = "none";
+      el("cardonly-hint").style.display = "none";
       empty.style.display = "flex";
     }
   }
@@ -2337,6 +2350,114 @@
     refreshCardOnlyView();
     show("screen-cardonly");
   }
+
+  /* ===================== PINCH-TO-ZOOM ON THE CARD VIEW ===================== */
+  // Whole-page zoom stays switched off (so a timer can't be zoomed by accident),
+  // so the card view does its own: pinch to zoom, drag to move around, and
+  // double-tap (or double-click) to zoom in or back out. It also works inside
+  // the Home Screen app. On a computer: Ctrl/Cmd + scroll, or double-click.
+  var CardZoom = (function(){
+    var wrap = el("cardonly-wrap"), img = el("cardonly-img");
+    var MAX = 5, DOUBLE_TAP_ZOOM = 2.5;
+    var s = 1, tx = 0, ty = 0;
+    var pinch = null, drag = null, lastTap = null, mouse = null;
+
+    function apply(){ img.style.transform = "translate(" + tx + "px," + ty + "px) scale(" + s + ")"; }
+    function clamp(){
+      s = Math.max(1, Math.min(MAX, s));
+      var w = img.offsetWidth * s, h = img.offsetHeight * s;
+      var mx = Math.max(0, (w - wrap.clientWidth) / 2), my = Math.max(0, (h - wrap.clientHeight) / 2);
+      tx = Math.max(-mx, Math.min(mx, tx));
+      ty = Math.max(-my, Math.min(my, ty));
+    }
+    function resetView(){ s = 1; tx = 0; ty = 0; apply(); }
+    function reset(){ resetView(); pinch = null; drag = null; lastTap = null; mouse = null; }
+    function rel(x, y){                       // a point relative to the middle of the card area
+      var r = wrap.getBoundingClientRect();
+      return { x: x - r.left - r.width / 2, y: y - r.top - r.height / 2 };
+    }
+    function dist(a, b){ var dx = a.x - b.x, dy = a.y - b.y; return Math.sqrt(dx * dx + dy * dy) || 1; }
+    function mid(a, b){ return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }; }
+    function pts(e){ return Array.prototype.map.call(e.touches, function(t){ return rel(t.clientX, t.clientY); }); }
+    function zoomAt(p, ns){                   // zoom so the point under p stays put
+      ns = Math.max(1, Math.min(MAX, ns));
+      tx = p.x - (p.x - tx) / s * ns;
+      ty = p.y - (p.y - ty) / s * ns;
+      s = ns; clamp(); apply();
+    }
+    function toggleAt(p){ if(s > 1.01) reset(); else zoomAt(p, DOUBLE_TAP_ZOOM); }
+
+    wrap.addEventListener("touchstart", function(e){
+      if(e.touches.length === 2){
+        var p = pts(e);
+        pinch = { d: dist(p[0], p[1]), s: s, tx: tx, ty: ty, m: mid(p[0], p[1]) };
+        drag = null; lastTap = null;
+      } else if(e.touches.length === 1){
+        var q = pts(e)[0];
+        drag = { x: q.x, y: q.y, tx: tx, ty: ty, moved: false, t: Date.now() };
+        pinch = null;
+      }
+      e.preventDefault();
+    }, { passive: false });
+
+    wrap.addEventListener("touchmove", function(e){
+      if(pinch && e.touches.length >= 2){
+        var p = pts(e), m = mid(p[0], p[1]);
+        var ns = Math.max(1, Math.min(MAX, pinch.s * dist(p[0], p[1]) / pinch.d));
+        var cx = (pinch.m.x - pinch.tx) / pinch.s, cy = (pinch.m.y - pinch.ty) / pinch.s;
+        s = ns; tx = m.x - cx * ns; ty = m.y - cy * ns;
+        clamp(); apply();
+      } else if(drag && e.touches.length === 1){
+        var q = pts(e)[0];
+        if(Math.abs(q.x - drag.x) + Math.abs(q.y - drag.y) > 8) drag.moved = true;
+        if(s > 1){ tx = drag.tx + (q.x - drag.x); ty = drag.ty + (q.y - drag.y); clamp(); apply(); }
+      }
+      e.preventDefault();
+    }, { passive: false });
+
+    wrap.addEventListener("touchend", function(e){
+      if(e.touches.length < 2) pinch = null;
+      if(e.touches.length === 0){
+        if(s < 1.02) resetView();
+        if(drag && !drag.moved && drag.t && Date.now() - drag.t < 350){
+          var now = Date.now();
+          if(lastTap && now - lastTap.at < 400 && Math.abs(drag.x - lastTap.x) + Math.abs(drag.y - lastTap.y) < 50){
+            toggleAt({ x: drag.x, y: drag.y }); lastTap = null;
+          } else { lastTap = { at: now, x: drag.x, y: drag.y }; }
+        }
+        drag = null;
+      } else if(e.touches.length === 1){      // lifted one finger of a pinch: carry on as a drag
+        var q = pts(e)[0];
+        drag = { x: q.x, y: q.y, tx: tx, ty: ty, moved: true, t: 0 };
+      }
+      e.preventDefault();
+    }, { passive: false });
+    wrap.addEventListener("touchcancel", function(){ pinch = null; drag = null; if(s < 1.02) resetView(); });
+
+    // mouse / trackpad
+    wrap.addEventListener("wheel", function(e){
+      if(!(e.ctrlKey || e.metaKey)) return;
+      e.preventDefault();
+      zoomAt(rel(e.clientX, e.clientY), s * Math.exp(-e.deltaY * 0.01));
+      if(s < 1.02) resetView();
+    }, { passive: false });
+    wrap.addEventListener("dblclick", function(e){ toggleAt(rel(e.clientX, e.clientY)); });
+    wrap.addEventListener("mousedown", function(e){
+      if(s > 1 && e.button === 0){ var q = rel(e.clientX, e.clientY); mouse = { x: q.x, y: q.y, tx: tx, ty: ty }; e.preventDefault(); }
+    });
+    window.addEventListener("mousemove", function(e){
+      if(!mouse) return;
+      var q = rel(e.clientX, e.clientY);
+      tx = mouse.tx + (q.x - mouse.x); ty = mouse.ty + (q.y - mouse.y); clamp(); apply();
+    });
+    window.addEventListener("mouseup", function(){ mouse = null; });
+
+    img.addEventListener("load", reset);            // a different card starts unzoomed
+    window.addEventListener("resize", reset);       // so does turning the phone
+    window.addEventListener("orientationchange", reset);
+    return { reset: reset };
+  })();
+
 
   el("btn-pick-card").addEventListener("click", function(){ openCardPicker(false, "screen-select"); });
   el("btn-cards-back").addEventListener("click", function(){ show(cardPickerReturn); });
@@ -3181,6 +3302,9 @@
     dlog("click at "+Math.round(e.clientX)+","+Math.round(e.clientY)+
          "  target="+describeNode(e.target)+"  current="+describeNode(navCurrent));
     if(dispatchingNavClick){ dlog("  (redirected click passing through)"); return; }
+    // On the card view, clicks on the card itself belong to zoom (double-click, drag). Only the
+    // TV remote's pointer needs "OK anywhere presses the highlighted button" there.
+    if(!IS_TV && e.target && e.target.closest && e.target.closest("#cardonly-wrap")) return;
     if(!navCurrent){ dlog("  (nothing highlighted yet, ignoring)"); return; }
     if(e.target === navCurrent || (navCurrent.contains && navCurrent.contains(e.target))){
       dlog("  (click landed on the highlighted item, letting it proceed)");

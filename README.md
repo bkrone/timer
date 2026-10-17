@@ -95,7 +95,7 @@ the automatic update stops and leaves it alone rather than overwriting it.
   several rounds (up to 10) with an automatic rest of 1:00, 1:30, 2:00 or Manual between them, just like
   the Tabata cards. **Plank** needs no setup: it
   goes straight to a ready screen for the 3-minute ladder (60 seconds on hands, 60 on elbows, 30 on
-  hands, 30 on elbows) with one soft beep every 15 seconds. **View card** shows just the card.
+  hands, 30 on elbows) with one soft beep every 15 seconds. **View card** shows just the card, and you can pinch to zoom it, drag it around, and double-tap to zoom in or out.
 - **Settings** (top right) opens the settings, with the app version just under them, and then the workout log.
   The log lists the workouts that were run on this device, with **Copy as CSV**. Each device keeps its own log.
 - The settings on that screen control the **Enable new-card alerts** button at the bottom of the home
