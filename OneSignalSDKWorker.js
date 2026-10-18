@@ -7,7 +7,7 @@
  */
 importScripts("https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.sw.js");
 
-var SHELL_CACHE = "fdf-shell-v33";   // bump this to force a fresh app shell
+var SHELL_CACHE = "fdf-shell-v34";   // bump this to force a fresh app shell
 var IMG_CACHE = "fdf-img-v1";        // card + icon images, kept across versions
 var SCOPE_URL = new URL("./", self.location.href);
 var SHELL_FILES = [
@@ -95,7 +95,8 @@ self.addEventListener("fetch", function(event){
   if(/OneSignalSDK/i.test(url.pathname)) return;                  // never touch the push worker
 
   if(req.mode === "navigate"){
-    event.respondWith(networkFirst(req, SHELL_CACHE, abs("index.html"), NAV_TIMEOUT_MS));
+    // no-cache = always ask the server if index.html changed (skips the 10-minute HTTP cache)
+    event.respondWith(networkFirst(new Request(abs("index.html"), { cache: "no-cache" }), SHELL_CACHE, abs("index.html"), NAV_TIMEOUT_MS));
     return;
   }
   var rel = url.pathname.slice(SCOPE_URL.pathname.length);
