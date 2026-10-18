@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no">
 <title>First Due Fitness</title>
+<meta name="app-version" content="v35">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="apple-mobile-web-app-title" content="BK-KB">
@@ -873,12 +874,42 @@
   .hist-when{color:var(--muted); font-size:.82rem; text-align:right; flex:0 0 auto; font-variant-numeric:tabular-nums;}
   .hist-more{color:var(--muted); font-size:.85rem; padding:12px 0;}
 
+  /* ---------- "Update ready" banner ---------- */
+  #update-banner{
+    display:none;
+    position:fixed;
+    top:0; left:0; right:0;
+    z-index:60;
+    height:calc(env(safe-area-inset-top,0px) + 44px);
+    padding:env(safe-area-inset-top,0px) 12px 0 16px;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+    background:var(--accent);
+    color:var(--on-accent);
+    font-weight:700;
+    font-size:.92rem;
+  }
+  #update-text{min-width:0; line-height:1.2;}
+  #btn-update{
+    flex:0 0 auto;
+    background:var(--on-accent);
+    color:var(--accent);
+    border-radius:var(--radius);
+    padding:.45em 1em;
+    font-weight:800;
+    font-size:.9rem;
+  }
+  #btn-update.nav-focus{background:var(--on-accent) !important; color:var(--accent) !important; box-shadow:0 0 0 3px var(--fg) !important;}
+  body.has-update #app{padding-top:calc(env(safe-area-inset-top,0px) + 44px);}
+
   @media (prefers-reduced-motion:reduce){
     *{transition:none !important;}
   }
 </style>
 </head>
 <body>
+<div id="update-banner" role="status"><span id="update-text">Update ready</span><button type="button" id="btn-update">Refresh</button></div>
 <div id="app">
 
   <!-- ===================== SELECT SCREEN ===================== -->
@@ -1028,6 +1059,27 @@
         <div class="setting-sub">Some colors are easier to read than others. If the buttons get hard to see, pick one of the swatches above.</div>
       </div>
     </div>
+    <div class="hist-settings" id="sound-settings" style="margin-top:1.2em;">
+      <div class="setting-row">
+        <div class="setting-text">
+          <div class="setting-name">Sound</div>
+          <div class="setting-sub" id="sound-sub">High</div>
+        </div>
+      </div>
+      <div class="chip-row" id="sound-chips" style="margin-top:.8em;">
+        <button type="button" class="chip" data-sound="off">Off</button>
+        <button type="button" class="chip" data-sound="low">Low</button>
+        <button type="button" class="chip" data-sound="medium">Medium</button>
+        <button type="button" class="chip" data-sound="high">High</button>
+      </div>
+      <div class="setting-row" id="silent-row" style="margin-top:1.2em; display:none;">
+        <div class="setting-text">
+          <div class="setting-name">Play when phone is on silent</div>
+          <div class="setting-sub">Beeps sound even with the ring/silent switch off. This can pause music playing from other apps.</div>
+        </div>
+        <button class="ctrl-btn setting-btn" id="btn-toggle-silent">On</button>
+      </div>
+    </div>
     <div class="hist-more" id="app-version"></div>
     <div class="hist-log">
       <div class="hist-settings-title">Workout log</div>
@@ -1102,7 +1154,7 @@
   if(/[?&]notv(&|$)/.test(location.search)) IS_TV = false;
   var IS_IOS = /iPad|iPhone|iPod/.test(UA) || (/Macintosh/.test(UA) && navigator.maxTouchPoints > 1);
   if(IS_TV) document.body.classList.add("tv");
-  var APP_VERSION = "v33";   // shown under the settings
+  var APP_VERSION = (document.querySelector('meta[name="app-version"]') || {}).content || "v35";   // shown under the settings; bump the <meta name="app-version"> in the head
 
   // Can this device receive push alerts at all? TVs can't, old iPads/iPhones
   // (before iOS 16.4) can't, and iOS only allows them for an app that has been
@@ -1153,16 +1205,67 @@
   }
 
   /* ===================== AUDIO ===================== */
+  /* ===================== SOUND SETTINGS ===================== */
+  // Off / Low / Medium / High scales every beep. High is the original loudness.
+  var SOUND_LEVELS = { off:0, low:0.3, medium:0.65, high:1 };
+  var SOUND_LABELS = { off:"Off", low:"Low", medium:"Medium", high:"High" };
+  var SOUND_KEY = "bell_sound";
+  var SILENT_KEY = "bell_silent_ok";      // "0" = don't override the iPhone silent switch
+  function soundName(){
+    var v = null;
+    try{ v = store && store.getItem(SOUND_KEY); }catch(e){}
+    return (v && SOUND_LEVELS.hasOwnProperty(v)) ? v : "high";
+  }
+  function soundLevel(){ return SOUND_LEVELS[soundName()]; }
+  function silentOk(){
+    try{ return !(store && store.getItem(SILENT_KEY) === "0"); }catch(e){ return true; }
+  }
+  // iPhone: Web Audio is muted by the silent switch unless the page asks for a
+  // "playback" audio session (iOS 16.4+). Older iOS falls back to a silent
+  // looping audio clip, which makes iOS treat the page as a media player.
+  function wantsPlaybackSession(){ return IS_IOS && silentOk() && soundLevel() > 0; }
+  function applyAudioSession(){
+    try{
+      if(navigator.audioSession) navigator.audioSession.type = wantsPlaybackSession() ? "playback" : "auto";
+    }catch(e){}
+  }
+  var SilentAudio = (function(){
+    var a = null, want = false;
+    function wavUrl(){
+      var n = 8000, b = new Uint8Array(44 + n), dv = new DataView(b.buffer), i;
+      function w(o, t){ for(var k = 0; k < t.length; k++) b[o + k] = t.charCodeAt(k); }
+      w(0,"RIFF"); dv.setUint32(4, 36 + n, true); w(8,"WAVE"); w(12,"fmt ");
+      dv.setUint32(16,16,true); dv.setUint16(20,1,true); dv.setUint16(22,1,true);
+      dv.setUint32(24,8000,true); dv.setUint32(28,8000,true); dv.setUint16(32,1,true); dv.setUint16(34,8,true);
+      w(36,"data"); dv.setUint32(40,n,true);
+      for(i = 44; i < 44 + n; i++) b[i] = 128;
+      return URL.createObjectURL(new Blob([b], { type:"audio/wav" }));
+    }
+    function sync(){
+      var on = want && wantsPlaybackSession() && !navigator.audioSession;   // only where the session API is missing
+      try{
+        if(on){
+          if(!a){ a = new Audio(); a.src = wavUrl(); a.loop = true; a.setAttribute("playsinline",""); }
+          if(a.paused){ var p = a.play(); if(p && p.catch) p.catch(function(){}); }
+        } else if(a && !a.paused){ a.pause(); }
+      }catch(e){}
+    }
+    return { set:function(w){ want = !!w; sync(); }, refresh:sync };
+  })();
+
   var actx = null;
   function ctx(){
     if(!actx){
       var AC = window.AudioContext || window.webkitAudioContext;
       actx = new AC();
     }
+    applyAudioSession();
     if(actx.state === "suspended") actx.resume();
     return actx;
   }
   function tone(freq,dur,vol,delay,type){
+    var lvl = soundLevel(); if(!lvl) return;
+    vol = (vol||0.35) * lvl;
     try{
       var c = ctx();
       var t0 = c.currentTime + (delay||0);
@@ -1304,6 +1407,7 @@
     var runActive = el("screen-run").classList.contains("active");
     var cardActive = el("screen-cardonly").classList.contains("active");
     Awake.set(cardActive || (runActive && !runDone));
+    SilentAudio.set(runActive);
   }
 
   /* ===================== HELPERS ===================== */
@@ -1323,6 +1427,7 @@
     el(id).classList.add("active");
     if(prev && prev.id === "screen-cards" && id !== "screen-cards") markCardsSeen();
     if(typeof CardZoom !== "undefined" && CardZoom) CardZoom.reset();
+    if(typeof UpdateCheck !== "undefined" && UpdateCheck) UpdateCheck.refresh();
     if(typeof focusFirst === "function") focusFirst(id);
     syncAwake();
   }
@@ -2778,7 +2883,31 @@
   el("bright-slider").addEventListener("input", onSlide);
   if(!ACCENTS[document.documentElement.getAttribute("data-accent") || ""]) document.documentElement.setAttribute("data-accent", currentAccent());
   if(currentAccent() === "custom"){ var hb0 = loadCustom(); setCustomColor(hb0[0], hb0[1], true); }   // safety net if the head script couldn't apply it
-  function openHistory(){ renderHistory(); renderSettings(); markAccent(); show("screen-history"); }
+  function markSound(){
+    var cur = soundName();
+    var chips = el("sound-chips").querySelectorAll(".chip");
+    for(var i = 0; i < chips.length; i++) chips[i].classList.toggle("selected", chips[i].getAttribute("data-sound") === cur);
+    el("sound-sub").textContent = SOUND_LABELS[cur];
+    el("silent-row").style.display = (IS_IOS && cur !== "off") ? "" : "none";
+    el("btn-toggle-silent").textContent = silentOk() ? "On" : "Off";
+  }
+  el("sound-chips").addEventListener("click", function(e){
+    var t = e.target;
+    while(t && t !== this && !(t.classList && t.classList.contains("chip"))) t = t.parentNode;
+    if(!t || t === this) return;
+    var v = t.getAttribute("data-sound");
+    if(!SOUND_LEVELS.hasOwnProperty(v)) return;
+    try{ if(store) store.setItem(SOUND_KEY, v); }catch(err){}
+    applyAudioSession(); SilentAudio.refresh(); markSound();
+    Sound.workStart();                 // a sample beep at the new volume (silent for Off)
+  });
+  el("btn-toggle-silent").addEventListener("click", function(){
+    try{ if(store) store.setItem(SILENT_KEY, silentOk() ? "0" : "1"); }catch(err){}
+    applyAudioSession(); SilentAudio.refresh(); markSound();
+    Sound.workStart();
+  });
+  applyAudioSession();
+  function openHistory(){ renderHistory(); renderSettings(); markAccent(); markSound(); show("screen-history"); }
 
   el("btn-history").addEventListener("click", openHistory);
   el("btn-history-back").addEventListener("click", function(){ show("screen-select"); });
@@ -3080,6 +3209,79 @@
   }
   window.addEventListener("load", registerCacheWorker);
 
+  /* ===================== "UPDATE READY" BANNER ===================== */
+  // Two signals: (1) a new service worker took over while this page was open,
+  // (2) index.html on the server names a different version than this page.
+  // Checked on open, when the app comes back to the foreground, when the
+  // network returns, and every 30 minutes (a TV can stay open for days).
+  var UpdateCheck = (function(){
+    var shown = false, lastCheck = 0, armed = false, armTimer = null;
+    var base = location.pathname.replace(/[^/]*$/, "");
+    var verRe = new RegExp('name="app-version"\\s+content="([^"]+)"');
+    function busy(){ return running || preStarting || restActive; }
+    function refresh(){
+      if(!shown) return;
+      el("update-text").textContent = armed ? "Tap again to end this workout and refresh"
+        : (busy() ? "Update ready. Refresh after your workout." : "Update ready");
+    }
+    function showBanner(){
+      if(shown) return;
+      shown = true;
+      el("update-banner").style.display = "flex";
+      document.body.classList.add("has-update");
+      refresh();
+    }
+    // Clear the app's saved copy of the page and re-fetch it past the browser's
+    // cache before reloading, so the reload can't come back with the old version.
+    function hardReload(){
+      var done = false;
+      function go(){ if(done) return; done = true; location.reload(); }
+      setTimeout(go, 4000);                       // never get stuck
+      try{
+        var jobs = [];
+        if(window.caches && caches.keys){
+          jobs.push(caches.keys().then(function(keys){
+            return Promise.all(keys.filter(function(k){ return k.indexOf("fdf-shell") === 0; })
+              .map(function(k){ return caches.delete(k); }));
+          }));
+        }
+        jobs.push(fetch(base + "index.html", { cache:"reload" }).catch(function(){}));
+        Promise.all(jobs).then(go, go);
+      }catch(e){ go(); }
+    }
+    function check(force){
+      var now = Date.now();
+      if(!force && now - lastCheck < 60000) return;
+      lastCheck = now;
+      if(typeof fetch !== "function") return;
+      try{
+        if("serviceWorker" in navigator) navigator.serviceWorker.getRegistration().then(function(r){ if(r) r.update(); }).catch(function(){});
+      }catch(e){}
+      fetch(base + "index.html", { cache:"no-store" })
+        .then(function(r){ return r.ok ? r.text() : null; })
+        .then(function(t){
+          var m = t && t.match(verRe);
+          dlog("update check: server " + (m ? m[1] : "?") + ", this page " + APP_VERSION);
+          if(m && m[1] !== APP_VERSION) showBanner();
+        }).catch(function(){});
+    }
+    el("btn-update").addEventListener("click", function(){
+      if(busy() && !armed){
+        armed = true; refresh();
+        armTimer = setTimeout(function(){ armed = false; refresh(); }, 4000);
+        return;
+      }
+      if(armTimer) clearTimeout(armTimer);
+      try{ endWorkout(); }catch(e){}
+      hardReload();
+    });
+    window.addEventListener("load", function(){ setTimeout(function(){ check(true); }, 3000); });
+    document.addEventListener("visibilitychange", function(){ if(document.visibilityState === "visible") check(false); });
+    window.addEventListener("online", function(){ check(true); });
+    setInterval(function(){ check(true); }, 30 * 60 * 1000);
+    return { refresh:refresh, check:check };
+  })();
+
   var warmTimer = null;
   function warmCardCache(){
     if(!("serviceWorker" in navigator) || !cardList.length) return;
@@ -3138,6 +3340,7 @@
     var scr = activeScreen();
     if(!scr) return [];
     var nodes = [].slice.call(scr.querySelectorAll("button, input, select, textarea, a[href], [tabindex]"));
+    var ub = el("update-banner"); if(ub && ub.style.display !== "none") nodes.unshift(el("btn-update"));
     return nodes.filter(function(n){
       if(n.disabled) return false;
       if(n.hasAttribute("hidden")) return false;
