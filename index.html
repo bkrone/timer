@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no">
 <title>First Due Fitness</title>
-<meta name="app-version" content="v36">
+<meta name="app-version" content="v37">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="apple-mobile-web-app-title" content="BK-KB">
@@ -3218,8 +3218,7 @@
   window.addEventListener("load", registerCacheWorker);
 
   /* ===================== "UPDATE READY" BANNER ===================== */
-  // Two signals: (1) a new service worker took over while this page was open,
-  // (2) index.html on the server names a different version than this page.
+  // One signal: index.html on the server names a different version than this page.
   // Checked on open, when the app comes back to the foreground, when the
   // network returns, and every 30 minutes (a TV can stay open for days).
   var UpdateCheck = (function(){
@@ -3239,14 +3238,6 @@
       document.body.classList.add("has-update");
       refresh();
     }
-    // A new service worker taking over a page that already had one means an update landed.
-    // (No banner on the very first install, when there was no controller yet.)
-    try{
-      if("serviceWorker" in navigator){
-        var hadController = !!navigator.serviceWorker.controller;
-        navigator.serviceWorker.addEventListener("controllerchange", function(){ if(hadController) showBanner(); });
-      }
-    }catch(e){}
     // Clear the app's saved copy of the page and re-fetch it past the browser's
     // cache before reloading, so the reload can't come back with the old version.
     function hardReload(){
