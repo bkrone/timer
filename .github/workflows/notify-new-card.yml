@@ -14,7 +14,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          fetch-depth: 2
+          fetch-depth: 0
 
       - name: Figure out which cards changed
         id: cards
@@ -111,15 +111,15 @@ jobs:
           echo "OneSignal response body: $RESP_BODY"
 
           # Surface the real outcome instead of a meaningless green checkmark:
-          # fail the job if the HTTP call itself failed, if OneSignal reported
-          # errors, or if it accepted the request but found nobody to send to.
+          # fail the job if the HTTP call failed or no message id came back.
+          # Partial errors (some invalid subscriptions) only warn, because the
+          # notification still went out to everyone else.
           if [ "$STATUS" -ge 300 ]; then
             echo "::error::OneSignal returned HTTP $STATUS - see response body above."
             exit 1
           fi
           if echo "$RESP_BODY" | grep -q '"errors"'; then
-            echo "::error::OneSignal reported errors - see response body above."
-            exit 1
+            echo "::warning::OneSignal reported errors - see response body above."
           fi
           # Per OneSignal's own docs: "If the message id is set, then a
           # message was sent." The recipients field is optional and often
