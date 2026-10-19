@@ -11,7 +11,7 @@ made, and the card gets a starter timer.
    - The app turns the name into the label: `Iron_Sunrise.jpg` shows as "Iron Sunrise".
    - `_s_` becomes an apostrophe: `Hell_s_Bells.jpg` shows as "Hell's Bells".
    - Hyphens are kept when the name also has underscores: `Sit-ups_and_Shut-ups.jpg`.
-   - JPG, PNG, WebP and GIF all work. Portrait pages around 1,200 to 2,000 pixels tall are plenty.
+   - JPG, PNG, WebP and GIF all work. (AVIF also displays in the app, but gets no thumbnail.) Portrait pages around 1,200 to 2,000 pixels tall are plenty.
 2. **Upload it.** On GitHub open the `cards` folder, choose **Add file > Upload files**,
    drop the image in, and click **Commit changes** (to `main`).
 3. **Wait a minute or two.** This all happens by itself:
@@ -68,7 +68,7 @@ for 5 rounds with a rest between. The app shows **Round 2 of 5** above the timer
 **A card with more than one timer.** Some workouts can be run more than one way (Tree Fiddy is a for-time
 workout, but the station sometimes does it Tabata style). Give the card a list of options in square
 brackets. The app shows one Start button per option on the home screen, and the first option is the
-main one (it's the big button, and **Surprise me** uses it):
+main one (**Surprise me** uses it):
 
 ```json
 "tree-fiddy": [
@@ -130,7 +130,7 @@ the automatic update stops and leaves it alone rather than overwriting it.
 
 - **No notification after adding a card.** Open the **Actions** tab, click the latest "Notify new
   workout card" run, and read the "Send OneSignal push notification" step. It shows exactly what
-  OneSignal said. Only newly added cards notify (deleting or editing a card doesn't). Also confirm the
+  OneSignal said. Only newly added cards notify (deleting or editing a card doesn't, but renaming one counts as adding it). Also confirm the
   phone appears as Subscribed under Audience > Subscriptions in OneSignal. If someone deleted and
   re-added the app to their home screen, they need to tap the enable-alerts button again.
 - **The app seems out of date.** Check the version under the settings, then close the
