@@ -54,6 +54,9 @@
   ],
   "qr": { "type": "fortime" },
 
-  "anger-management": { "type": "fortime" },
-  "chain-reaction": { "type": "fortime" }
+  "anger-management": [
+    { "type": "fortime" },
+    { "type": "interval", "work": 20, "rest": 10, "rounds": 10, "sets": 5, "restBetweenSec": 90, "label": "Tabata style" }
+  ],
+  "chain-reaction": { "type": "amrap", "minutes": 20 },
 }
