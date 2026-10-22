@@ -52,5 +52,8 @@
     { "type": "fortime" },
     { "type": "interval", "work": 20, "rest": 10, "rounds": 6, "sets": 5, "restBetweenSec": 90, "label": "Tabata style" }
   ],
-  "qr": { "type": "fortime" }
+  "qr": { "type": "fortime" },
+
+  "anger-management": { "type": "fortime" },
+  "chain-reaction": { "type": "fortime" }
 }
