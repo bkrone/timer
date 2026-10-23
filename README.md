@@ -84,7 +84,7 @@ Without a label, the button just describes the timer. A card can have up to 4 op
 one timer keeps working exactly as before. New cards still get a single "for time" line automatically,
 so turn it into a list when you want a second option.
 
-Keep the commas between lines, and don't put a comma after the last line. If the file has a typo,
+Keep the commas between lines, and DON'T PUT A COMMA AFTER THE LAST LINE. If the file has a typo,
 the automatic update stops and leaves it alone rather than overwriting it.
 
 ## Using the app
