@@ -52,13 +52,17 @@
     { "type": "fortime" },
     { "type": "interval", "work": 20, "rest": 10, "rounds": 6, "sets": 5, "restBetweenSec": 90, "label": "Tabata style" }
   ],
-  "qr": { "type": "fortime" },
-
+  
   "anger-management": [
     { "type": "fortime" },
     { "type": "interval", "work": 20, "rest": 10, "rounds": 10, "sets": 5, "restBetweenSec": 90, "label": "Tabata style" }
   ],
   "chain-reaction": { "type": "amrap", "minutes": 20 },
 
-  "five-finger-death-grip": { "type": "fortime" }
+  "five-finger-death-grip": [
+    { "type": "amrap", "minutes": 20 },
+    { "type": "interval", "work": 20, "rest": 10, "rounds": 8, "sets": 5, "restBetweenSec": 90, "label": "Tabata style" }
+  ],
+
+  "qr": { "type": "fortime" }
 }
